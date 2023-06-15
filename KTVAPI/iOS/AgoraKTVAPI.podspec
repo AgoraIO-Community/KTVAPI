@@ -9,7 +9,7 @@ Pod::Spec.new do |spec|
   spec.platform      = :ios
   spec.source        = { :git => "https://github.com/AgoraIO-Community/KTVAPI.git", :tag => '1.0.0.1'}
   spec.swift_versions = "5.0"
-  spec.source_files  = "iOS/Classes/*.swift"
+  spec.source_files  = "KTVAPI/iOS/Classes/*.{swift}"
   spec.requires_arc  = true
   spec.ios.deployment_target  = '11.0'
   spec.dependency 'AgoraRtcEngine_Special_iOS', '4.1.1.8'
