@@ -1,5 +1,5 @@
 Pod::Spec.new do |spec|
-  spec.name          = "AgoraKTVApi"
+  spec.name          = "KTVApi"
   spec.version       = "1.0.0.1"
   spec.summary       = "Agora KTV Api"
   spec.description   = "iOS library for quickly implement Agora karaoke scenes"
