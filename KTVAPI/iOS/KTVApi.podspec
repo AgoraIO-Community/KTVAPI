@@ -12,7 +12,7 @@ Pod::Spec.new do |spec|
   spec.source_files  = "KTVAPI/iOS/Classes/*.{swift}"
   spec.requires_arc  = true
   spec.ios.deployment_target  = '11.0'
-  spec.dependency 'AgoraRtcEngine_Special_iOS', '4.1.1.8'
+  spec.dependency 'AgoraRtcEngine_Special_iOS', '4.1.1.142'
   spec.pod_target_xcconfig = { 'IPHONEOS_DEPLOYMENT_TARGET' => '11.0' }
   spec.user_target_xcconfig = { 'IPHONEOS_DEPLOYMENT_TARGET' => '11.0' }
 end

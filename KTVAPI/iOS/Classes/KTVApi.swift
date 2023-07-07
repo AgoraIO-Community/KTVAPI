@@ -21,6 +21,7 @@ import AgoraRtcKit
 /// 歌曲状态
 @objc public enum KTVPlayerTrackMode: Int {
     case origin = 0    //原唱
+    case lead          //导唱
     case acc           //伴奏
 }
 
@@ -66,6 +67,11 @@ import AgoraRtcKit
     case musicPreloadFailAndJoinChannelFail
 }
 
+@objc public enum KTVType: Int {
+    case normal
+    case singbattle
+}
+
 @objc public protocol IMusicLoadStateListener: NSObjectProtocol {
     
     
@@ -108,6 +114,7 @@ import AgoraRtcKit
     func onUpdatePitch(pitch: Float)
     func onUpdateProgress(progress: Int)
     func onDownloadLrcData(url: String)
+    func onHighPartTime(highStartTime: Int, highEndTime: Int)
 }
 
 @objc public protocol KTVApiEventHandlerDelegate: NSObjectProtocol {
@@ -125,18 +132,15 @@ import AgoraRtcKit
     /// 歌曲得分回调
     /// - Parameter score: <#score description#>
     func onSingingScoreResult(score: Float)
-
-    
+     
     /// 角色切换回调
     /// - Parameters:
     ///   - oldRole: <#oldRole description#>
     ///   - newRole: <#newRole description#>
     func onSingerRoleChanged(oldRole: KTVSingRole, newRole: KTVSingRole)
     
+    func onTokenPrivilegeWillExpire()
     
-
-   func onTokenPrivilegeWillExpire()
-        
     /**
          * 合唱频道人声音量提示
          * @param speakers 不同用户音量信息
@@ -155,6 +159,7 @@ import AgoraRtcKit
     var localUid: Int = 0
     var chorusChannelName: String
     var chorusChannelToken: String
+    var type: KTVType = .normal
     var maxCacheSize: Int = 10
     @objc public
     init(appId: String,
@@ -164,6 +169,7 @@ import AgoraRtcKit
          localUid: Int,
          chorusChannelName: String,
          chorusChannelToken: String,
+         type: KTVType,
          maxCacheSize: Int
     ) {
         self.appId = appId
@@ -173,6 +179,7 @@ import AgoraRtcKit
         self.localUid = localUid
         self.chorusChannelName = chorusChannelName
         self.chorusChannelToken = chorusChannelToken
+        self.type = type
         self.maxCacheSize = maxCacheSize
     }
 }
@@ -329,6 +336,9 @@ public typealias JoinExChannelCallBack = ((Bool, KTVJoinChorusFailReason?)-> Voi
     /// 获取MCC实例
     /// - Returns: <#description#>
     func getMusicContentCenter() -> AgoraMusicContentCenter?
+    
+    // 开启专业主播模式
+    func enableProfessionalStreamerMode(_ enable: Bool)
     
     /**
      创建dataStreamID
