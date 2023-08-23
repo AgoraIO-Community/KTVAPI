@@ -8,9 +8,13 @@ import android.widget.Toast
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.navigation.fragment.findNavController
+import io.agora.ktvdemo.IChannelEventListener
 import io.agora.ktvdemo.R
+import io.agora.ktvdemo.RtcEngineController
 import io.agora.ktvdemo.databinding.FragmentMainBinding
 import io.agora.ktvdemo.utils.KeyCenter
+import io.agora.ktvdemo.utils.TokenGenerator
+import io.agora.rtc2.ChannelMediaOptions
 
 class MainFragment : BaseFragment<FragmentMainBinding>() {
 
@@ -48,7 +52,35 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                     toast("请输入频道号")
                     return@setOnClickListener
                 }
-                findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
+                RtcEngineController.eventListener = IChannelEventListener()
+                TokenGenerator.generateTokens(KeyCenter.channelId,
+                    KeyCenter.localUid.toString(),
+                    TokenGenerator.TokenGeneratorType.token006,
+                    arrayOf(
+                        TokenGenerator.AgoraTokenType.rtc,
+                        TokenGenerator.AgoraTokenType.rtm
+                    ),
+                    success = { ret ->
+                        val rtcToken = ret[TokenGenerator.AgoraTokenType.rtc] ?: ""
+                        val rtmToken = ret[TokenGenerator.AgoraTokenType.rtm] ?: ""
+                        TokenGenerator.generateToken("${KeyCenter.channelId}_ex", KeyCenter.localUid.toString(),
+                            TokenGenerator.TokenGeneratorType.token007, TokenGenerator.AgoraTokenType.rtc,
+                            success = { exToken ->
+                                val chorusToken = exToken
+                                RtcEngineController.rtcToken = rtcToken
+                                RtcEngineController.rtmToken = rtmToken
+                                RtcEngineController.chorusChannelRtcToken = chorusToken
+                                findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
+                            },
+                            failure = {
+                                toast("获取 token 异常")
+                            }
+                        )
+                    },
+                    failure = {
+                        toast("获取 token 异常")
+                    }
+                )
             }
         }
     }

@@ -93,12 +93,12 @@ interface ILrcView {
      * ktvApi内部更新音乐播放进度progress时会主动调用此方法将进度值progress传给你的歌词组件，50ms回调一次
      * @param progress 歌曲播放的真实进度 20ms回调一次
      */
-    fun onUpdateProgress(progress: Long)
+    fun onUpdateProgress(progress: Long?)
 
     /**
      * ktvApi获取到歌词地址时会主动调用此方法将歌词地址url传给你的歌词组件，您需要在这个回调内完成歌词的下载
      */
-    fun onDownloadLrcData(url: String)
+    fun onDownloadLrcData(url: String?)
 
     /**
      * ktvApi获取到抢唱切片歌曲副歌片段时间时，会调用此方法回调给歌词组件
@@ -258,11 +258,6 @@ interface KTVApi {
      * 清空内部变量/缓存，取消在initWithRtcEngine时的监听，以及取消网络请求等
      */
     fun release()
-
-    /**
-     * 开启关闭专业模式
-     */
-    fun enableProfessionalStreamerMode(enable: Boolean)
 
     /**
      * 收到 IKTVApiEventHandler.onTokenPrivilegeWillExpire 回调时需要主动调用方法更新Token

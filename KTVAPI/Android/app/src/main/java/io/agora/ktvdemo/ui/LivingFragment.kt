@@ -30,15 +30,12 @@ import io.agora.ktvdemo.utils.TokenGenerator
 import io.agora.ktvdemo.utils.ZipUtils
 import io.agora.mediaplayer.Constants
 import io.agora.rtc2.ChannelMediaOptions
+import io.agora.rtc2.RtcEngine
 import java.io.File
 
 class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
     private var karaokeView: KaraokeView? = null
-
-    private var rtcToken: String = ""
-    private var rtmToken: String = ""
-    private var chorusToken: String = ""
 
     private val ktvApi: KTVApi by lazy {
         createKTVApi()
@@ -52,7 +49,8 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         super.onViewCreated(view, savedInstanceState)
 
         initView()
-        initRtcEngine()
+        initKTVApi()
+        joinChannel()
     }
 
     private fun initView() {
@@ -71,45 +69,6 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         }
     }
 
-    private fun initRtcEngine() {
-        RtcEngineController.eventListener = IChannelEventListener(
-            onChannelJoined = { channel, uid ->
-                initKtvApi()
-            }
-        )
-        TokenGenerator.generateTokens(KeyCenter.channelId,
-            KeyCenter.localUid.toString(),
-            TokenGenerator.TokenGeneratorType.token006,
-            arrayOf(
-                TokenGenerator.AgoraTokenType.rtc,
-                TokenGenerator.AgoraTokenType.rtm
-            ),
-            success = { ret ->
-                rtcToken = ret[TokenGenerator.AgoraTokenType.rtc] ?: ""
-                rtmToken = ret[TokenGenerator.AgoraTokenType.rtm] ?: ""
-                TokenGenerator.generateToken("${KeyCenter.channelId}_ex", KeyCenter.localUid.toString(),
-                    TokenGenerator.TokenGeneratorType.token007, TokenGenerator.AgoraTokenType.rtc,
-                    success = { exToken ->
-                        chorusToken = exToken
-                        joinChannel()
-                    },
-                    failure = {
-                        toast("获取 token 异常")
-                        mainHandler.postDelayed({
-                            findNavController().popBackStack()
-                        }, 500)
-                    }
-                )
-            },
-            failure = {
-                toast("获取 token 异常")
-                mainHandler.postDelayed({
-                    findNavController().popBackStack()
-                }, 500)
-            }
-        )
-    }
-
     private fun joinChannel() {
         val channelMediaOptions = ChannelMediaOptions().apply {
             autoSubscribeAudio = true
@@ -121,35 +80,40 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             publishMicrophoneTrack = !KeyCenter.isAudience()
         }
         RtcEngineController.rtcEngine.joinChannel(
-            rtcToken,
+            RtcEngineController.rtcToken,
             KeyCenter.channelId,
             KeyCenter.localUid,
             channelMediaOptions
         )
     }
 
-    private fun initKtvApi() {
+    private fun initKTVApi() {
         val ktvApiConfig = KTVApiConfig(
             BuildConfig.AGORA_APP_ID,
-            rtmToken,
+            RtcEngineController.rtmToken,
             RtcEngineController.rtcEngine,
             KeyCenter.channelId,
             KeyCenter.localUid,
             "${KeyCenter.channelId}_ex",
-            chorusToken
+            RtcEngineController.chorusChannelRtcToken
         )
         ktvApi.initialize(ktvApiConfig)
         ktvApi.addEventHandler(ktvApiEventHandler)
+        ktvApi.renewInnerDataStreamId()
         ktvApi.setLrcView(object : ILrcView {
             override fun onUpdatePitch(pitch: Float?) {
             }
 
-            override fun onUpdateProgress(progress: Long) {
-                karaokeView?.setProgress(progress)
+            override fun onUpdateProgress(progress: Long?) {
+                if (progress != null) {
+                    karaokeView?.setProgress(progress)
+                }
             }
 
-            override fun onDownloadLrcData(url: String) {
-                dealDownloadLrc(url)
+            override fun onDownloadLrcData(url: String?) {
+                if (url != null) {
+                    dealDownloadLrc(url)
+                }
             }
 
             override fun onHighPartTime(highStartTime: Long, highEndTime: Long) {
@@ -309,7 +273,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         ktvApi.switchSingerRole(KTVSingRole.Audience, null)
         ktvApi.removeEventHandler(ktvApiEventHandler)
         ktvApi.release()
+        RtcEngine.destroy()
         super.onDestroy()
-
     }
 }

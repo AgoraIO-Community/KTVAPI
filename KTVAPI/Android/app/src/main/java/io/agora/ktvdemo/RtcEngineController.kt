@@ -1,10 +1,7 @@
 package io.agora.ktvdemo
 
 import android.util.Log
-import io.agora.rtc2.IRtcEngineEventHandler
-import io.agora.rtc2.RtcEngine
-import io.agora.rtc2.RtcEngineConfig
-import io.agora.rtc2.RtcEngineEx
+import io.agora.rtc2.*
 
 data class IChannelEventListener constructor(
     var onChannelJoined: ((channel: String, uid: Int) -> Unit)? = null,
@@ -42,9 +39,16 @@ object RtcEngineController {
                     }
                 }
                 innerRtcEngine = (RtcEngine.create(config) as RtcEngineEx).apply {
-                    enableVideo()
+                    setAudioProfile(
+                        Constants.AUDIO_PROFILE_MUSIC_HIGH_QUALITY,
+                        Constants.AUDIO_SCENARIO_GAME_STREAMING
+                    )
                 }
             }
             return innerRtcEngine!!
         }
+
+    var rtcToken: String = ""
+    var chorusChannelRtcToken = ""
+    var rtmToken = ""
 }
