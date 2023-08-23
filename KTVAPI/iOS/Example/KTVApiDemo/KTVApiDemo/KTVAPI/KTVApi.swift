@@ -166,7 +166,7 @@ import AgoraRtcKit
     var type: KTVType = .normal
     var maxCacheSize: Int = 10
     var musicType: loadMusicType = .mcc
-    var mccDomain: String? = nil
+    var isDebugMode: Bool = false
     @objc public
     init(appId: String,
          rtmToken: String,
@@ -178,7 +178,7 @@ import AgoraRtcKit
          type: KTVType,
          maxCacheSize: Int,
          musicType: loadMusicType,
-         mccDomain: String
+         isDebugMode: Bool
     ) {
         self.appId = appId
         self.rtmToken = rtmToken
@@ -190,7 +190,7 @@ import AgoraRtcKit
         self.type = type
         self.maxCacheSize = maxCacheSize
         self.musicType = musicType
-        self.mccDomain = mccDomain
+        self.isDebugMode = isDebugMode
     }
 }
 
@@ -356,11 +356,7 @@ public typealias JoinExChannelCallBack = ((Bool, KTVJoinChorusFailReason?)-> Voi
     /// - Parameter isOnMicOpen: <#isOnMicOpen description#>
     func setMicStatus(isOnMicOpen: Bool)
     
-    /// 获取mpk实例
-    /// - Returns: <#description#>
-    func getMediaPlayer() -> AgoraRtcMediaPlayerProtocol?
-    
-    func getMusicPlayer() -> AgoraMusicPlayerProtocol?
+    func getMusicPlayer() -> AgoraRtcMediaPlayerProtocol?
     
     /// 获取MCC实例
     /// - Returns: <#description#>

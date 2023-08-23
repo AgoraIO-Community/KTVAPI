@@ -95,7 +95,7 @@ class KTVViewController: UIViewController {
             self.rtmToken = rtmToken
             self.rtcPlayerToken = rtcPlayerToken
             
-            let apiConfig = KTVApiConfig(appId: KeyCenter.AppId, rtmToken: self.type == .mcc ? (self.rtmToken ?? "") : "", engine: self.rtcKit, channelName: self.channelName, localUid: self.userId, chorusChannelName: "\(self.channelName)_ex", chorusChannelToken: self.rtcPlayerToken ?? "", type: .normal, maxCacheSize: 10, musicType: self.type == .mcc ? .mcc : .local, mccDomain: "")
+            let apiConfig = KTVApiConfig(appId: KeyCenter.AppId, rtmToken: self.type == .mcc ? (self.rtmToken ?? "") : "", engine: self.rtcKit, channelName: self.channelName, localUid: self.userId, chorusChannelName: "\(self.channelName)_ex", chorusChannelToken: self.rtcPlayerToken ?? "", type: .normal, maxCacheSize: 10, musicType: self.type == .mcc ? .mcc : .local, isDebugMode: false)
             self.ktvApi = KTVApiImpl(config: apiConfig)
             self.ktvApi.renewInnerDataStreamId()
             self.ktvApi.setLrcView(view: self.lyricView)
@@ -115,7 +115,7 @@ class KTVViewController: UIViewController {
         options.channelProfile = .liveBroadcasting
         options.autoSubscribeAudio = true
         if type == .mcc {
-            options.publishMediaPlayerId = Int(ktvApi.getMediaPlayer()?.getMediaPlayerId() ?? 0)
+            options.publishMediaPlayerId = Int(ktvApi.getMusicPlayer()?.getMediaPlayerId() ?? 0)
         }
         options.enableAudioRecordingOrPlayout = true
         return options
