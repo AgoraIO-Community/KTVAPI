@@ -264,7 +264,7 @@ extension KTVApiImpl: KTVApiDelegate {
     func cleanCache() {
         sendCustomMessage(with: "cleanCache", label: "")
         isRelease = true
-     //   musicPlayer?.stop()
+        mediaPlayer?.stop()
         freeTimer()
         agoraPrint("cleanCache")
         lrcControl = nil
