@@ -773,7 +773,7 @@ extension KTVApiImpl {
             return
         }
         apiConfig?.engine?.adjustPlaybackSignalVolume(Int(remoteVolume))
-        let ret = mediaPlayer?.open(url, startPos: 0)
+        let ret = mediaPlayer?.open(url, startPos: startPos)
         agoraPrint("startSing->openMedia(\(url) fail: \(ret ?? -1)")
     }
 
