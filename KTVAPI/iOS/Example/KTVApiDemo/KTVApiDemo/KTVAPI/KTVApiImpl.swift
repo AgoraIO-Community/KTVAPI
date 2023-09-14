@@ -595,7 +595,7 @@ extension KTVApiImpl {
         } else if role == .coSinger {
             mediaPlayer?.stop()
             let mediaOption = AgoraRtcChannelMediaOptions()
-            mediaOption.autoSubscribeAudio = true
+          //  mediaOption.autoSubscribeAudio = true
          //   mediaOption.autoSubscribeVideo = false
             mediaOption.publishMediaPlayerAudioTrack = false
             apiConfig?.engine?.updateChannel(with: mediaOption)
@@ -784,7 +784,7 @@ extension KTVApiImpl {
         agoraPrint("stopSing")
         sendCustomMessage(with: "stopSing", label: "")
         let mediaOption = AgoraRtcChannelMediaOptions()
-        mediaOption.autoSubscribeAudio = true
+      //  mediaOption.autoSubscribeAudio = true
       //  mediaOption.autoSubscribeVideo = true
         mediaOption.publishMediaPlayerAudioTrack = false
         apiConfig?.engine?.updateChannel(with: mediaOption)
@@ -1140,7 +1140,7 @@ extension KTVApiImpl {
         let role = singerRole
         if role == .coSinger {
             if state == .stopped {
-                stopSing()
+               // stopSing()
             } else if state == .paused {
                 pausePlay()
             } else if state == .playing {
