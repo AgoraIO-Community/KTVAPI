@@ -724,7 +724,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             KTVSingRole.CoSinger -> {
                 mPlayer.stop()
                 val channelMediaOption = ChannelMediaOptions()
-                channelMediaOption.autoSubscribeAudio = true
+//                channelMediaOption.autoSubscribeAudio = true
                 channelMediaOption.publishMediaPlayerAudioTrack = false
                 mRtcEngine.updateChannelMediaOptions(channelMediaOption)
                 leaveChorus2ndChannel(role)
@@ -743,7 +743,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         Log.d(TAG, "stopSong called")
 
         val channelMediaOption = ChannelMediaOptions()
-        channelMediaOption.autoSubscribeAudio = true
+//        channelMediaOption.autoSubscribeAudio = true
         channelMediaOption.publishMediaPlayerAudioTrack = false
         mRtcEngine.updateChannelMediaOptions(channelMediaOption)
 
