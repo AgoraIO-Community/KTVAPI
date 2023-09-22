@@ -94,7 +94,7 @@ private func agoraPrint(_ message: String) {
     private var timer: Timer?
     private var isPause: Bool = false
     
-    public var remoteVolume: Int = 50
+    public var remoteVolume: Int = 30
     private var joinChorusNewRole: KTVSingRole = .audience
     private var oldPitch: Double = 0
     private var isWearingHeadPhones: Bool = false
@@ -122,7 +122,7 @@ private func agoraPrint(_ message: String) {
             contentCenterConfiguration.maxCacheSize = UInt(config.maxCacheSize)
             if config.isDebugMode {
                 //如果这一块报错为contentCenterConfiguration没有mccDomain这个属性 说明该版本不支持这个 可以注释掉这行代码。完全不影响
-               // contentCenterConfiguration.mccDomain = "api-test.agora.io"
+                contentCenterConfiguration.mccDomain = "api-test.agora.io"
             }
             mcc = AgoraMusicContentCenter.sharedContentCenter(config: contentCenterConfiguration)
             mcc?.register(self)
@@ -237,11 +237,6 @@ extension KTVApiImpl: KTVApiDelegate {
             startSing(url: url, startPos: 0)
         }
     }
-
-//    func getMediaPlayer() -> AgoraRtcMediaPlayerProtocol? {
-//        sendCustomMessage(with: "getMediaPlayer", label: "")
-//        return mediaPlayer
-//    }
     
     func getMusicPlayer() -> AgoraRtcMediaPlayerProtocol? {
         sendCustomMessage(with: "getMusicPlayer", label: "")
@@ -375,10 +370,6 @@ extension KTVApiImpl: KTVApiDelegate {
         sendCustomMessage(with: "setMicStatus", label: "\(isOnMicOpen)")
         self.isNowMicMuted = !isOnMicOpen
     }
-
-    @objc public func fetchRtcConnection() -> AgoraRtcConnection? {
-        return self.subChorusConnection
-     }
     
 }
 
@@ -924,7 +915,6 @@ extension KTVApiImpl {
     }
     
     @objc public func didKTVAPIReceiveStreamMessageFrom(uid: NSInteger, streamId: NSInteger, data: Data) {
-        sendCustomMessage(with: "didKTVAPIReceiveStreamMessageFrom", label: "uid:\(uid),streamId:\(streamId),data:\(data.base64EncodedString())")
         let role = singerRole
         guard let dict = dataToDictionary(data: data), let cmd = dict["cmd"] as? String else { return }
         
@@ -1074,7 +1064,6 @@ extension KTVApiImpl {
     }
 
     @objc public func didKTVAPILocalAudioStats(stats: AgoraRtcLocalAudioStats) {
-        sendCustomMessage(with: "didKTVAPILocalAudioStats", label: "delay:\(stats.audioPlayoutDelay)")
         if useCustomAudioSource == true {return}
         audioPlayoutDelay = Int(stats.audioPlayoutDelay)
     }
@@ -1310,7 +1299,7 @@ extension KTVApiImpl: AgoraRtcMediaPlayerDelegate {
             self.localPlayerPosition = Date().milListamp
             print("localPlayerPosition:playerKit:openCompleted \(localPlayerPosition)")
             self.playerDuration = TimeInterval(mediaPlayer?.getDuration() ?? 0)
-            playerKit.selectAudioTrack(1)
+            playerKit.selectMultiAudioTrack(1, publishTrackIndex: 0)
             if isMainSinger() { //主唱播放，通过同步消息“setLrcTime”通知伴唱play
                 playerKit.play()
             }
