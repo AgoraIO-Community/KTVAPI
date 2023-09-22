@@ -391,6 +391,30 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             this.singerRole = newRole
             ktvApiEventHandlerList.forEach { it.onSingerRoleChanged(oldRole, newRole) }
             switchRoleStateListener?.onSwitchRoleSuccess()
+        } else if (this.singerRole == KTVSingRole.CoSinger && newRole == KTVSingRole.LeadSinger) {
+            // 9、CoSinger -》LeadSinger
+            this.singerRole = newRole
+            syncNewLeadSinger(ktvApiConfig.localUid)
+            mRtcEngine.muteRemoteAudioStream(mainSingerUid, false)
+            mainSingerUid = ktvApiConfig.localUid
+
+            mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+            mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+            mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 80000}")
+
+            val channelMediaOption = ChannelMediaOptions()
+            channelMediaOption.autoSubscribeAudio = true
+            channelMediaOption.publishMediaPlayerId = mPlayer.mediaPlayerId
+            channelMediaOption.publishMediaPlayerAudioTrack = true
+            mRtcEngine.updateChannelMediaOptions(channelMediaOption)
+
+            val channelMediaOption1 = ChannelMediaOptions()
+            channelMediaOption.autoSubscribeAudio = false
+            channelMediaOption.autoSubscribeVideo = false
+            channelMediaOption.publishMicrophoneTrack = true
+            channelMediaOption.enableAudioRecordingOrPlayout = false
+            channelMediaOption.clientRoleType = CLIENT_ROLE_BROADCASTER
+            mRtcEngine.updateChannelMediaOptionsEx(channelMediaOption1, subChorusConnection)
         } else {
             switchRoleStateListener?.onSwitchRoleFail(SwitchRoleFailReason.NO_PERMISSION)
             Log.e(TAG, "Error！You can not switch role from $singerRole to $newRole!")
@@ -898,6 +922,15 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         }
     }
 
+    // ------------------ 同步新主唱 --------------------
+    private fun syncNewLeadSinger(uid: Int) {
+        val msg: MutableMap<String?, Any?> = java.util.HashMap()
+        msg["cmd"] = "syncNewLeadSinger"
+        msg["uid"] = uid
+        val jsonMsg = JSONObject(msg)
+        sendStreamMessageWithJsonObject(jsonMsg) {}
+    }
+
     // ------------------ 歌词播放、同步 ------------------
     // 开始播放歌词
     private val displayLrcTask = object : Runnable {
@@ -1130,6 +1163,12 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                 val pitch = jsonMsg.getDouble("pitch")
                 if (this.singerRole == KTVSingRole.Audience) {
                     this.pitch = pitch
+                }
+            } else if (jsonMsg.getString("cmd") == "syncNewLeadSinger") {
+                if (singerRole == KTVSingRole.CoSinger) {
+                    mRtcEngine.muteRemoteAudioStream(mainSingerUid, false)
+                    mainSingerUid = jsonMsg.getInt("uid")
+                    mRtcEngine.muteRemoteAudioStream(mainSingerUid, true)
                 }
             }
         } catch (exp: JSONException) {
