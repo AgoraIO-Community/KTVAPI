@@ -73,8 +73,8 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             autoSubscribeAudio = true
             clientRoleType = if (KeyCenter.isAudience()) io.agora.rtc2.Constants.CLIENT_ROLE_AUDIENCE
             else io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
-            autoSubscribeVideo = false
-            autoSubscribeAudio = false
+            autoSubscribeVideo = true
+            autoSubscribeAudio = true
             publishCameraTrack = false
             publishMicrophoneTrack = !KeyCenter.isAudience()
         }

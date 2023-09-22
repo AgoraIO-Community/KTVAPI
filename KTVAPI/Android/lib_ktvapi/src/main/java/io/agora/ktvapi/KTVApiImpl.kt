@@ -110,7 +110,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     private fun reportCallScenarioApi(event: String, params: JSONObject) {
         mRtcEngine.sendCustomReportMessage(
             "scenarioAPI",
-            "ktv_android_3.3.0",
+            "1_android_3.3.0",
             event,
             params.toString(),
             0)
@@ -658,10 +658,10 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     private fun becomeSoloSinger() {
         Log.d(TAG, "becomeSoloSinger called")
         // 主唱进入合唱模式
+        mRtcEngine.setAudioScenario(AUDIO_SCENARIO_CHORUS)
         mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
         mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
         mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 80000}")
-        mRtcEngine.setAudioScenario(AUDIO_SCENARIO_CHORUS)
 
         val channelMediaOption = ChannelMediaOptions()
         channelMediaOption.autoSubscribeAudio = true
@@ -724,14 +724,14 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             KTVSingRole.CoSinger -> {
                 mPlayer.stop()
                 val channelMediaOption = ChannelMediaOptions()
-//                channelMediaOption.autoSubscribeAudio = true
                 channelMediaOption.publishMediaPlayerAudioTrack = false
                 mRtcEngine.updateChannelMediaOptions(channelMediaOption)
                 leaveChorus2ndChannel(role)
+
+                mRtcEngine.setAudioScenario(AUDIO_SCENARIO_GAME_STREAMING)
                 mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
                 mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
                 mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 48000}")
-                mRtcEngine.setAudioScenario(AUDIO_SCENARIO_GAME_STREAMING)
             }
             else -> {
                 Log.e(TAG, "JoinChorus with wrong role: $singerRole")
@@ -743,15 +743,15 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         Log.d(TAG, "stopSong called")
 
         val channelMediaOption = ChannelMediaOptions()
-//        channelMediaOption.autoSubscribeAudio = true
         channelMediaOption.publishMediaPlayerAudioTrack = false
         mRtcEngine.updateChannelMediaOptions(channelMediaOption)
 
         mPlayer.stop()
+
+        mRtcEngine.setAudioScenario(AUDIO_SCENARIO_GAME_STREAMING)
         mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
         mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
         mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 48000}")
-        mRtcEngine.setAudioScenario(AUDIO_SCENARIO_GAME_STREAMING)
     }
 
     // ------------------ inner --------------------
@@ -806,10 +806,10 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         }
 
         if (newRole == KTVSingRole.CoSinger) {
+            mRtcEngine.setAudioScenario(AUDIO_SCENARIO_CHORUS)
             mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
             mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
             mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 48000}")
-            mRtcEngine.setAudioScenario(AUDIO_SCENARIO_CHORUS)
         }
 
         // main singer do not subscribe 2nd channel
