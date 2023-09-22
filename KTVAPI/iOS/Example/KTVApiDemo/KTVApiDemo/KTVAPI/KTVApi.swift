@@ -398,5 +398,7 @@ public typealias JoinExChannelCallBack = ((Bool, KTVJoinChorusFailReason?)-> Voi
    * @param syncPts 是否同步切换前后的起始播放位置: true 同步，false 不同步，从 0 开始
    */
   func switchPlaySrc(url: String, syncPts: Bool)
-      
+     
+  func fetchRtcConnection() -> AgoraRtcConnection?
+    
 }

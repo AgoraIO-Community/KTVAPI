@@ -94,7 +94,7 @@ private func agoraPrint(_ message: String) {
     private var timer: Timer?
     private var isPause: Bool = false
     
-    public var remoteVolume: Int = 30
+    public var remoteVolume: Int = 50
     private var joinChorusNewRole: KTVSingRole = .audience
     private var oldPitch: Double = 0
     private var isWearingHeadPhones: Bool = false
@@ -122,7 +122,7 @@ private func agoraPrint(_ message: String) {
             contentCenterConfiguration.maxCacheSize = UInt(config.maxCacheSize)
             if config.isDebugMode {
                 //如果这一块报错为contentCenterConfiguration没有mccDomain这个属性 说明该版本不支持这个 可以注释掉这行代码。完全不影响
-                contentCenterConfiguration.mccDomain = "api-test.agora.io"
+               // contentCenterConfiguration.mccDomain = "api-test.agora.io"
             }
             mcc = AgoraMusicContentCenter.sharedContentCenter(config: contentCenterConfiguration)
             mcc?.register(self)
@@ -376,6 +376,10 @@ extension KTVApiImpl: KTVApiDelegate {
         self.isNowMicMuted = !isOnMicOpen
     }
 
+    @objc public func fetchRtcConnection() -> AgoraRtcConnection? {
+        return self.subChorusConnection
+     }
+    
 }
 
 // 主要是角色切换，加入合唱，加入多频道，退出合唱，退出多频道
@@ -478,7 +482,34 @@ extension KTVApiImpl {
             }
             
             stateCallBack(.success, .none)
-        } else {
+        } else if oldRole == .coSinger && newRole == .leadSinger {
+           self.singerRole = .leadSinger
+           self.syncNewLeadSinger(with: apiConfig?.localUid ?? 0)
+           apiConfig?.engine?.muteRemoteAudioStream(UInt(songConfig?.mainSingerUid ?? 0), mute: false)
+           songConfig?.mainSingerUid = apiConfig?.localUid ?? 0
+           
+           apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+           apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+           apiConfig?.engine?.setParameters("{\"che.audio.custom_bitrate\": 80000}")
+           
+           var mediaOption = AgoraRtcChannelMediaOptions()
+           mediaOption.publishMediaPlayerId = Int(mediaPlayer?.getMediaPlayerId() ?? 0)
+           mediaOption.publishMediaPlayerAudioTrack = true
+           apiConfig?.engine?.updateChannel(with: mediaOption)
+           
+           var mediaOption2 = AgoraRtcChannelMediaOptions()
+           mediaOption2.autoSubscribeAudio = false
+           mediaOption2.autoSubscribeVideo = false
+           mediaOption2.publishMicrophoneTrack = true
+           mediaOption2.enableAudioRecordingOrPlayout = false
+           mediaOption2.clientRoleType = .broadcaster
+           apiConfig?.engine?.updateChannelEx(with: mediaOption2, connection: subChorusConnection ?? AgoraRtcConnection())
+           getEventHander { delegate in
+               delegate.onSingerRoleChanged(oldRole: .coSinger, newRole: .leadSinger)
+           }
+           
+           stateCallBack(.success, .none)
+       } else {
             stateCallBack(.fail, .noPermission)
             agoraPrint("Error！You can not switch role from \(oldRole.rawValue) to \(newRole.rawValue)!")
         }
@@ -813,6 +844,16 @@ extension KTVApiImpl {
         apiConfig?.engine?.setParameters("{\"che.audio.ans.enable\":\((enable && isWearingHeadPhones) ? false : true)}")
         apiConfig?.engine?.setParameters("{\"che.audio.md.enable\": false)}")
     }
+    
+    private func syncNewLeadSinger(with uid: Int) {
+        let dict = [
+            "cmd": "syncNewLeadSinger",
+            "uid":uid
+        ] as [String : Any]
+        sendStreamMessageWithDict(dict) { _ in
+            
+        }
+    }
 
 }
 
@@ -894,6 +935,8 @@ extension KTVApiImpl {
             handlePlayerStateCommand(dict: dict, role: role)
         case "setVoicePitch":
             handleSetVoicePitchCommand(dict: dict, role: role)
+        case "syncNewLeadSinger":
+            handleCosingerToLeadSinger(with: dict)
         default:
             break
         }
@@ -988,6 +1031,17 @@ extension KTVApiImpl {
             }
         }
         
+    }
+    
+    private func handleCosingerToLeadSinger(with dict: [String: Any]) {
+        if dict["cmd"] as! String == "syncNewLeadSinger" {
+            if self.singerRole == .coSinger {
+                apiConfig?.engine?.muteRemoteAudioStream(UInt(songConfig?.mainSingerUid ?? 0), mute: false)
+                    let mainSingerUid = dict["uid"] as? Int ?? 0
+                    songConfig?.mainSingerUid = mainSingerUid
+                    apiConfig?.engine?.muteRemoteAudioStream(UInt(mainSingerUid), mute: true)
+            }
+        }
     }
 
     private func handleAudienceRole(dict: [String: Any]) {
