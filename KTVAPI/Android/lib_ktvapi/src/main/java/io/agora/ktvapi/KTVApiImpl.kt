@@ -155,6 +155,10 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         startDisplayLrc()
         startSyncPitch()
         isRelease = false
+
+        if (config.type == KTVType.SingRelay) {
+            this.remoteVolume = 100
+        }
     }
 
     override fun renewInnerDataStreamId() {
@@ -191,6 +195,11 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
 
         // Android Only
         mRtcEngine.setParameters("{\"che.audio.enable_estimated_device_delay\":false}")
+
+        // ENT-1036
+        if (ktvApiConfig.type == KTVType.SingRelay) {
+            mRtcEngine.setParameters("{\"che.audio.aiaec.working_mode\":1}")
+        }
     }
 
     override fun addEventHandler(ktvApiEventHandler: IKTVApiEventHandler) {
@@ -979,7 +988,11 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
 
     private val mSyncPitchTask = Runnable {
         if (!mStopSyncPitch) {
-            if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING &&
+            if (ktvApiConfig.type == KTVType.SingRelay &&
+                (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger || singerRole == KTVSingRole.CoSinger) &&
+                isOnMicOpen) {
+                sendSyncPitch(pitch)
+            } else if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING &&
                 (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger)) {
                 sendSyncPitch(pitch)
             }
@@ -1016,7 +1029,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     private fun loadLyric(songNo: Long, onLoadLyricCallback: (songNo: Long, lyricUrl: String?) -> Unit) {
         Log.d(TAG, "loadLyric: $songNo")
         val requestId = mMusicCenter.getLyric(songNo, 0)
-        if (requestId.isEmpty()) {
+        if (requestId == null || requestId.isEmpty()) {
             onLoadLyricCallback.invoke(songNo, null)
             return
         }
@@ -1126,6 +1139,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                     if (this.songIdentifier == songId) {
                         mLastReceivedPlayPosTime = System.currentTimeMillis()
                         mReceivedPlayPosition = realPosition
+                        ktvApiEventHandlerList.forEach { it.onMusicPlayerPositionChanged(realPosition, 0) }
                     } else {
                         mLastReceivedPlayPosTime = null
                         mReceivedPlayPosition = 0
@@ -1162,6 +1176,9 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                 ) }
             } else if (jsonMsg.getString("cmd") == "setVoicePitch") {
                 val pitch = jsonMsg.getDouble("pitch")
+                if (ktvApiConfig.type == KTVType.SingRelay && !isOnMicOpen && this.singerRole != KTVSingRole.Audience) {
+                    this.pitch = pitch
+                }
                 if (this.singerRole == KTVSingRole.Audience) {
                     this.pitch = pitch
                 }
@@ -1181,6 +1198,9 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         super.onAudioVolumeIndication(speakers, totalVolume)
         val allSpeakers = speakers ?: return
         // VideoPitch 回调, 用于同步各端音准
+        if (this.ktvApiConfig.type == KTVType.SingRelay && !isOnMicOpen) {
+            return
+        }
         if (this.singerRole != KTVSingRole.Audience) {
             for (info in allSpeakers) {
                 if (info.uid == 0) {
@@ -1383,6 +1403,8 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             mLastReceivedPlayPosTime = null
             mReceivedPlayPosition = 0
         }
+
+        ktvApiEventHandlerList.forEach { it.onMusicPlayerPositionChanged(position_ms, timestamp_ms) }
     }
 
     override fun onPlayerEvent(
