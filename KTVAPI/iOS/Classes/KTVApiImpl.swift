@@ -539,7 +539,6 @@ extension KTVApiImpl {
             
             let mediaOption = AgoraRtcChannelMediaOptions()
             mediaOption.autoSubscribeAudio = true
-           // mediaOption.autoSubscribeVideo = true
             mediaOption.publishMediaPlayerAudioTrack = false
             apiConfig?.engine?.updateChannel(with: mediaOption)
             
@@ -619,7 +618,6 @@ extension KTVApiImpl {
         } else if role == .coSinger {
             mediaPlayer?.stop()
             let mediaOption = AgoraRtcChannelMediaOptions()
-            mediaOption.autoSubscribeAudio = true
             mediaOption.publishMediaPlayerAudioTrack = false
             apiConfig?.engine?.updateChannel(with: mediaOption)
             leaveChorus2ndChannel(role)
@@ -807,7 +805,6 @@ extension KTVApiImpl {
         agoraPrint("stopSing")
         sendCustomMessage(with: "stopSing", label: "")
         let mediaOption = AgoraRtcChannelMediaOptions()
-        mediaOption.autoSubscribeAudio = true
         mediaOption.publishMediaPlayerAudioTrack = false
         apiConfig?.engine?.updateChannel(with: mediaOption)
 
@@ -888,18 +885,6 @@ extension KTVApiImpl: AgoraRtcEngineDelegate {
     public func rtcEngine(_ engine: AgoraRtcEngineKit, tokenPrivilegeWillExpire token: String) {
         getEventHander { delegate in
             delegate.onTokenPrivilegeWillExpire()
-        }
-    }
-    
-    func rtcEngine(_ engine: AgoraRtcEngineKit, audioMetadataReceived uid: UInt, metadata: Data) {
-        //接收消息 setLRCTime
-        guard let dict = dataToDictionary(data: metadata), let cmd = dict["cmd"] as? String else { return }
-        
-        switch cmd {
-            case "setLrcTime":
-                handleSetLrcTimeCommand(dict: dict, role: singerRole)
-            default:
-            break;
         }
     }
 }
@@ -1145,7 +1130,6 @@ extension KTVApiImpl {
         let role = singerRole
         if role == .coSinger {
             if state == .stopped {
-                stopSing()
             } else if state == .paused {
                 pausePlay()
             } else if state == .playing {
@@ -1476,10 +1460,6 @@ extension KTVApiImpl: KTVApiRTCDelegate {
         self.isWearingHeadPhones = wearHeadPhone
         enableProfessionalStreamerMode(self.enableProfessional)
     }
-    
-    func audioMetadataReceived(uid: UInt, metadata: Data) {
-        
-    }
 
 }
 
@@ -1492,7 +1472,6 @@ protocol KTVApiRTCDelegate: NSObjectProtocol  {
     func didAudioPublishStateChange(channelId: String, oldState: AgoraStreamPublishState, newState: AgoraStreamPublishState, elapseSinceLastState: Int32)
     func receiveStreamMessageFromUid(uid: UInt, streamId: Int, data: Data)
     func localAudioStats(stats: AgoraRtcLocalAudioStats)
-    func audioMetadataReceived(uid: UInt, metadata: Data)
 }
 
 class KTVApiRTCDelegateHandler: NSObject, AgoraRtcEngineDelegate {
@@ -1529,8 +1508,5 @@ class KTVApiRTCDelegateHandler: NSObject, AgoraRtcEngineDelegate {
     func rtcEngine(_ engine: AgoraRtcEngineKit, localAudioStats stats: AgoraRtcLocalAudioStats) {
         delegate.localAudioStats(stats: stats)
     }
-    
-    func rtcEngine(_ engine: AgoraRtcEngineKit, audioMetadataReceived uid: UInt, metadata: Data) {
-        delegate.audioMetadataReceived(uid: uid, metadata: metadata)
-    }
 }
+
