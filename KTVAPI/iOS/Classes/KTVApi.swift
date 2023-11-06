@@ -74,6 +74,8 @@ import AgoraRtcKit
 @objc public enum KTVType: Int {
     case normal
     case singbattle
+    case cantata
+    case singRelay
 }
 
 @objc public protocol IMusicLoadStateListener: NSObjectProtocol {
@@ -153,6 +155,9 @@ import AgoraRtcKit
     func onChorusChannelAudioVolumeIndication(
         speakers: [AgoraRtcAudioVolumeInfo],
         totalVolume: Int)
+    
+    //MPK时间回调 只给房主用 仅适合接唱
+    func onMusicPlayerProgressChanged(with progress: Int)
 }
 
 @objc open class KTVApiConfig: NSObject{
@@ -398,5 +403,5 @@ public typealias JoinExChannelCallBack = ((Bool, KTVJoinChorusFailReason?)-> Voi
    * @param syncPts 是否同步切换前后的起始播放位置: true 同步，false 不同步，从 0 开始
    */
   func switchPlaySrc(url: String, syncPts: Bool)
-
+      
 }

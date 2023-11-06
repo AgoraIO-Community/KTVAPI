@@ -192,16 +192,8 @@ class KTVViewController: UIViewController {
 }
 
 extension KTVViewController: AgoraRtcEngineDelegate {
-    func rtcEngine(_ engine: AgoraRtcEngineKit, reportAudioVolumeIndicationOfSpeakers speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int) {
-        if let ktvApi = self.ktvApi {
-            ktvApi.didKTVAPIReceiveAudioVolumeIndication(with: speakers, totalVolume: totalVolume)
-        }
-    }
-    
-    func rtcEngine(_ engine: AgoraRtcEngineKit, receiveStreamMessageFromUid uid: UInt, streamId: Int, data: Data) {
-        if let ktvApi = self.ktvApi {
-            ktvApi.didKTVAPIReceiveStreamMessageFrom(uid: NSInteger(uid), streamId: streamId, data: data)
-        }
+    func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
+        
     }
 }
 
@@ -240,5 +232,8 @@ extension KTVViewController: KTVApiEventHandlerDelegate {
     func onChorusChannelAudioVolumeIndication(speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int) {
         
     }
-
+    
+    func onMusicPlayerProgressChanged(with progress: Int) {
+        
+    }
 }
