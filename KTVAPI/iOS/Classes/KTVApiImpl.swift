@@ -290,6 +290,7 @@ extension KTVApiImpl: KTVApiDelegate {
                 let channelMediaOption = AgoraRtcChannelMediaOptions()
                 channelMediaOption.token = chorusChannelRtcToken
                 apiConfig?.engine?.updateChannelEx(with: channelMediaOption, connection: subChorusConnection)
+                apiConfig?.chorusChannelToken = chorusChannelRtcToken
             }
         }
 
@@ -541,7 +542,7 @@ extension KTVApiImpl {
             mediaOption.autoSubscribeAudio = true
             mediaOption.publishMediaPlayerAudioTrack = false
             apiConfig?.engine?.updateChannel(with: mediaOption)
-            
+
             mediaPlayer?.setPlayerOption("enable_multi_audio_track", value: 1)
             if apiConfig?.musicType == .mcc {
                 (mediaPlayer as? AgoraMusicPlayerProtocol)?.openMedia(songCode: self.songCode , startPos: 0)
