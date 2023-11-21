@@ -5,13 +5,15 @@ import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.navigation.fragment.findNavController
 import io.agora.karaoke_view.v11.KaraokeView
 import io.agora.ktvapi.*
 import io.agora.ktvdemo.BuildConfig
-import io.agora.ktvdemo.rtc.RtcEngineController
-import io.agora.ktvdemo.databinding.FragmentLivingBinding
+import io.agora.ktvdemo.MyApplication
 import io.agora.ktvdemo.R
+import io.agora.ktvdemo.databinding.FragmentLivingBinding
+import io.agora.ktvdemo.rtc.RtcEngineController
 import io.agora.ktvdemo.utils.DownloadUtils
 import io.agora.ktvdemo.utils.KeyCenter
 import io.agora.ktvdemo.utils.ZipUtils
@@ -64,6 +66,52 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 tvSinger.text = getString(R.string.app_co_singer)
             } else {
                 tvSinger.text = getString(R.string.app_audience)
+            }
+
+            btJoinChorus.setOnClickListener {
+                if (KeyCenter.isLeadSinger()) {
+                    Toast.makeText(MyApplication.app(), R.string.app_no_premission, Toast.LENGTH_SHORT).show()
+                } else {
+                    ktvApi.switchSingerRole(KTVSingRole.CoSinger, null)
+                }
+            }
+
+            btLeaveChorus.setOnClickListener {
+                if (KeyCenter.isLeadSinger()) {
+                    Toast.makeText(MyApplication.app(), R.string.app_no_premission, Toast.LENGTH_SHORT).show()
+                } else {
+                    ktvApi.switchSingerRole(KTVSingRole.Audience, null)
+                }
+            }
+
+            btOriginal.setOnClickListener {
+                if (KeyCenter.isLeadSinger()) {
+                    ktvApi.getMediaPlayer().selectMultiAudioTrack(0, 0)
+                } else if (KeyCenter.isCoSinger()) {
+                    ktvApi.getMediaPlayer().selectAudioTrack(0)
+                } else {
+                    Toast.makeText(MyApplication.app(), R.string.app_no_premission, Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            btAcc.setOnClickListener {
+                if (KeyCenter.isLeadSinger()) {
+                    ktvApi.getMediaPlayer().selectMultiAudioTrack(1, 1)
+                } else if (KeyCenter.isCoSinger()) {
+                    ktvApi.getMediaPlayer().selectAudioTrack(1)
+                } else {
+                    Toast.makeText(MyApplication.app(), R.string.app_no_premission, Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            btDaoChang.setOnClickListener {
+                if (KeyCenter.isLeadSinger()) {
+                    ktvApi.getMediaPlayer().selectMultiAudioTrack(0, 1)
+                } else if (KeyCenter.isCoSinger()) {
+                    Toast.makeText(MyApplication.app(), R.string.app_no_premission, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(MyApplication.app(), R.string.app_no_premission, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
