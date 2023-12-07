@@ -389,7 +389,7 @@ extension KTVApiImpl: KTVApiDelegate {
             apiConfig?.engine?.muteLocalAudioStream(!isOnMicOpen)
         }
     }
-    
+
     @objc public func removeMusic(songCode: Int) {
         sendCustomMessage(with: "removeMusic", label: "songCode:\(songCode)")
         let ret: Int = mcc?.removeCache(songCode: songCode) ?? 0
@@ -933,7 +933,7 @@ extension KTVApiImpl {
                 let ntpTime = dict["ntp"] as? Int,
                 let songId = dict["songIdentifier"] as? String
         else { return }
-     //   agoraPrint("realTime:\(realPosition) position:\(position) lastNtpTime:\(lastNtpTime) ntpTime:\(ntpTime) ntpGap:\(ntpTime - self.lastNtpTime) ")
+      
         //如果接收到的歌曲和自己本地的歌曲不一致就不更新进度
 //        guard songCode == self.songCode else {
 //            agoraPrint("local songCode[\(songCode)] is not equal to recv songCode[\(self.songCode)] role: \(singerRole.rawValue)")
@@ -1265,6 +1265,11 @@ extension KTVApiImpl: AgoraRtcMediaPlayerDelegate {
            
            sendStreamMessageWithDict(dict) { _ in
                
+           }
+           if apiConfig?.type == .singRelay {
+               getEventHander { delegate in
+                    delegate.onMusicPlayerProgressChanged(with: position_ms)
+               }
            }
        }
         
