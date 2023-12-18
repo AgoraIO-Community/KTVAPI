@@ -1,12 +1,10 @@
 # KTV场景化Api sample demo
 
 > 本文档主要介绍如何快速跑通 <mark>KTV场景化Api</mark> 示例工程，支持通过声网内容中心版权音乐和本地文件两种方式。
-> 
-> k 歌流程
->  ![ktvapi_liucheng.png](image%2Fktvapi_liucheng.png)
-> Demo 效果:
-![Screenshot_20230814-114931.png](image/Screenshot_20230814-114931.png)
-![Screenshot_20230814-115006.png](image/Screenshot_20230814-115006.png)
+>
+> **Demo 效果:**
+>
+> <img src="image/Screenshot_20230814-114931.png" width="300" height="640"><img src="image/Screenshot_20230814-115006.png" width="300" height="640">
 ---
 
 ## 1. 环境准备
@@ -40,7 +38,7 @@
 
 - 在项目的 [**local.properties**](../../local.properties) 里填写需要的声网 App ID 和 App 证书，服务器地址可以联系销售人员获取
 - 
-![local_config.png](image%2Flocal_config.png)
+  ![local_config.png](image%2Flocal_config.png)
 
   ```
   TOOLBOX_SERVER_HOST：获取 rtc token，rtm token
