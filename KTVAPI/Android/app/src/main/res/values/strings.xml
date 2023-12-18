@@ -10,4 +10,6 @@
     <string name="app_acc">伴奏</string>
     <string name="app_daochang">导唱</string>
     <string name="app_no_premission">不能做这项操作</string>
+    <string name="app_load_music">加载歌曲</string>
+    <string name="app_remove_music">移除歌曲</string>
 </resources>
