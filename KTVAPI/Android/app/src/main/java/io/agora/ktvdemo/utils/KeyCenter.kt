@@ -2,7 +2,7 @@ package io.agora.ktvdemo.utils
 
 object KeyCenter {
 
-    const val LeadSingerUid = 1000
+    const val LeadSingerUid = 10003213
     const val CoSingerUid = 2000
     const val AudienceUid = 3000
 

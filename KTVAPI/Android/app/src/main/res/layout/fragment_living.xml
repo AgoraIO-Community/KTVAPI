@@ -49,11 +49,27 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btLoadMusic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_load_music"
+        app:layout_constraintTop_toBottomOf="@+id/lyricsView"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btRemoveMusic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_remove_music"
+        app:layout_constraintTop_toBottomOf="@+id/lyricsView"
+        app:layout_constraintStart_toEndOf="@+id/btJoinChorus" />
+
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btJoinChorus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/app_join_chorus"
-        app:layout_constraintTop_toBottomOf="@+id/lyricsView"
+        app:layout_constraintTop_toBottomOf="@+id/btLoadMusic"
         app:layout_constraintStart_toStartOf="parent" />
 
     <androidx.appcompat.widget.AppCompatButton
@@ -61,7 +77,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/app_leave_chorus"
-        app:layout_constraintTop_toBottomOf="@+id/lyricsView"
+        app:layout_constraintTop_toBottomOf="@+id/btLoadMusic"
         app:layout_constraintStart_toEndOf="@+id/btJoinChorus" />
 
     <androidx.appcompat.widget.AppCompatButton

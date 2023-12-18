@@ -99,18 +99,18 @@ interface ILrcView {
      * ktvApi内部更新音高pitch时会主动调用此方法将pitch值传给你的歌词组件
      * @param pitch 音高值
      */
-    fun onUpdatePitch(pitch: Float?)
+    fun onUpdatePitch(pitch: Float)
 
     /**
      * ktvApi内部更新音乐播放进度progress时会主动调用此方法将进度值progress传给你的歌词组件，50ms回调一次
      * @param progress 歌曲播放的真实进度 20ms回调一次
      */
-    fun onUpdateProgress(progress: Long?)
+    fun onUpdateProgress(progress: Long)
 
     /**
      * ktvApi获取到歌词地址时会主动调用此方法将歌词地址url传给你的歌词组件，您需要在这个回调内完成歌词的下载
      */
-    fun onDownloadLrcData(url: String?)
+    fun onDownloadLrcData(url: String)
 
     /**
      * ktvApi获取到抢唱切片歌曲副歌片段时间时，会调用此方法回调给歌词组件
@@ -369,6 +369,12 @@ interface KTVApi {
         config: KTVLoadMusicConfiguration,
         musicLoadStateListener: IMusicLoadStateListener
     )
+
+    /**
+     * 取消加载歌曲，会打断加载歌曲的进程并移除歌曲缓存
+     * @param songCode 歌曲唯一编码
+     */
+    fun removeMusic(songCode: Long)
 
     /**
      * 加载歌曲，同时只能为一首歌loadSong，同步调用， 一般使用此loadSong是歌曲已经preload成功（url为本地文件地址）

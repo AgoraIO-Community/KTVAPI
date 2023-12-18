@@ -580,11 +580,22 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             } else if (status == 2) {
                 // 预加载歌曲加载中
                 musicLoadStateListener.onMusicLoadProgress(song, percent, MusicLoadStatus.values().firstOrNull { it.value == status } ?: MusicLoadStatus.FAILED, msg, lrcUrl)
+            } else if (status == 3) {
+                // 主动停止下载
+                musicLoadStateListener.onMusicLoadFail(song, KTVLoadSongFailReason.CANCELED)
             } else {
                 // 预加载歌曲失败
                 ktvApiLogError("loadMusic failed: MUSIC_PRELOAD_FAIL")
                 musicLoadStateListener.onMusicLoadFail(song, KTVLoadSongFailReason.MUSIC_PRELOAD_FAIL)
             }
+        }
+    }
+
+    override fun removeMusic(songCode: Long) {
+        reportCallScenarioApi("removeMusic", JSONObject().put("songCode", songCode))
+        val ret = mMusicCenter.removeCache(songCode)
+        if (ret < 0) {
+            ktvApiLogError("removeMusic failed, ret: $ret")
         }
     }
 
