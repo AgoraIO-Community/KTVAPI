@@ -410,5 +410,4 @@ public typealias JoinExChannelCallBack = ((Bool, KTVJoinChorusFailReason?)-> Voi
    */
       
    func removeMusic(songCode: Int)
-
 }

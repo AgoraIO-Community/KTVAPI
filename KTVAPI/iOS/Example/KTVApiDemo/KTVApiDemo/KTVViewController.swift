@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Foundation
 import AgoraRtcKit
 import SVProgressHUD
 public enum LoadMusicType: Int {
@@ -277,6 +278,8 @@ extension KTVViewController {
             //主唱合唱不能加入
             SVProgressHUD.showInfo(withStatus: "当前身份不支持该操作")
         }
+    }
+}
 
 extension KTVViewController: AgoraRtcEngineDelegate {
     func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
@@ -320,12 +323,6 @@ extension KTVViewController: AgoraRtcEngineDelegate {
         }
     }
 
-}
-
-extension KTVViewController: AgoraRtcEngineDelegate {
-    func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
-        
-    }
 }
 
 extension KTVViewController: IMusicLoadStateListener {
