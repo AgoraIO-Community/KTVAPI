@@ -9,7 +9,7 @@
 
 ## 1. 环境准备
 
-- <mark>最低兼容 Android 7.0</mark>（SDK API Level 24）
+- <mark>最低兼容 Android 5.0</mark>（SDK API Level 21）
 - Android Studio 3.5及以上版本。
 - Android 7.0 及以上的手机设备。
 
@@ -41,7 +41,7 @@
 - 在项目的 [**gradle.properties**](gradle.properties) 里填写需要的声网 App ID 和 App 证书
 
   ```
-  TOOLBOX_SERVER_HOST：获取 rtc token，rtm token
+  # RTM RTC SDK key Config
   AGORA_APP_ID：声网appid
   AGORA_APP_CERTIFICATE：声网Certificate
   ```
