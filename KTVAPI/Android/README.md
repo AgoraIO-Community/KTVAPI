@@ -4,7 +4,7 @@
 >
 > **Demo 效果:**
 >
-> <img src="image/Screenshot_20230814-114931.png" width="300" height="640"><img src="image/Screenshot_20230814-115006.png" width="300" height="640">
+> <img src="https://accktvpic.oss-cn-beijing.aliyuncs.com/pic/github_readme/ktv/ktvapi_demo1.png" width="300" height="640"><img src="https://accktvpic.oss-cn-beijing.aliyuncs.com/pic/github_readme/ktv/ktvapi_demo2.png" width="300" height="640">
 ---
 
 ## 1. 环境准备
