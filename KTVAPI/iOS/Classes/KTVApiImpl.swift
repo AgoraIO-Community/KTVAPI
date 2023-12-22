@@ -123,7 +123,7 @@ private func agoraPrint(_ message: String) {
             contentCenterConfiguration.maxCacheSize = UInt(config.maxCacheSize)
             if config.isDebugMode {
                 //如果这一块报错为contentCenterConfiguration没有mccDomain这个属性 说明该版本不支持这个 可以注释掉这行代码。完全不影响
-                contentCenterConfiguration.mccDomain = "api-test.shengwang.cn"
+                contentCenterConfiguration.mccDomain = "api-test.agora.io"
             }
             mcc = AgoraMusicContentCenter.sharedContentCenter(config: contentCenterConfiguration)
             mcc?.register(self)
@@ -379,13 +379,13 @@ extension KTVApiImpl: KTVApiDelegate {
     /**
      * 设置当前mic开关状态
      */
-    @objc public func setMicStatus(isOnMicOpen: Bool) {
-        sendCustomMessage(with: "setMicStatus", label: "\(isOnMicOpen)")
-        self.isNowMicMuted = !isOnMicOpen
+    @objc public func muteMic(muteStatus: Bool) {
+        sendCustomMessage(with: "setMicStatus", label: "\(muteStatus)")
+        self.isNowMicMuted = muteStatus
         if self.singerRole == .leadSinger || self.singerRole == .soloSinger {
-            apiConfig?.engine?.adjustRecordingSignalVolume(isOnMicOpen ? 100 : 0)
+            apiConfig?.engine?.adjustRecordingSignalVolume(muteStatus ? 0 : 100)
         } else {
-            apiConfig?.engine?.muteLocalAudioStream(!isOnMicOpen)
+            apiConfig?.engine?.muteLocalAudioStream(muteStatus)
         }
     }
     
