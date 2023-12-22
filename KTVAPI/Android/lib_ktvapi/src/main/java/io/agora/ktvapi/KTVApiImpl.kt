@@ -688,13 +688,12 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     }
 
     override fun setLrcView(view: ILrcView) {
-        reportCallScenarioApi("setLrcView", JSONObject())
         this.lrcView = view
     }
 
-    override fun setMicStatus(isOnMicOpen: Boolean) {
-        reportCallScenarioApi("setMicStatus", JSONObject().put("isOnMicOpen", isOnMicOpen))
-        this.isOnMicOpen = isOnMicOpen
+    override fun muteMic(mute: Boolean) {
+        reportCallScenarioApi("muteMic", JSONObject().put("mute", isOnMicOpen))
+        this.isOnMicOpen = !mute
         if (this.singerRole == KTVSingRole.SoloSinger || this.singerRole == KTVSingRole.LeadSinger) {
             mRtcEngine.adjustRecordingSignalVolume(if (isOnMicOpen) 100 else 0)
         } else {
@@ -751,8 +750,10 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
 
                 // 预加载歌曲成功
                 if (ktvApiConfig.musicType == KTVMusicType.SONG_CODE) {
+                    mPlayer.setPlayerOption("enable_multi_audio_track", 0)
                     (mPlayer as IAgoraMusicPlayer).open(songCode, 0) // TODO open failed
                 } else {
+                    mPlayer.setPlayerOption("enable_multi_audio_track", 0)
                     mPlayer.open(songUrl, 0) // TODO open failed
                 }
 
@@ -1367,6 +1368,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     ) {
         val mediaPlayerState = state ?: return
         val mediaPlayerError = error ?: return
+        ktvApiLog("onPlayerStateChanged: $state")
         this.mediaPlayerState = mediaPlayerState
         when (mediaPlayerState) {
             MediaPlayerState.PLAYER_STATE_OPEN_COMPLETED -> {

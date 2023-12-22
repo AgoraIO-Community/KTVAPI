@@ -12,4 +12,6 @@
     <string name="app_no_premission">不能做这项操作</string>
     <string name="app_load_music">加载歌曲</string>
     <string name="app_remove_music">移除歌曲</string>
+    <string name="app_mic_on">开麦</string>
+    <string name="app_mic_off">关麦</string>
 </resources>
