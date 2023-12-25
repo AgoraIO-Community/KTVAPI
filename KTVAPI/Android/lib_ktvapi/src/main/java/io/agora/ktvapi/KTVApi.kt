@@ -484,10 +484,10 @@ interface KTVApi {
     fun setLrcView(view: ILrcView)
 
     /**
-     * 设置当前mic开关状态
-     * 目前关麦调用 adjustRecordSignalVolume(0) 后 onAudioVolumeIndication 仍然会执行， ktvApi需要增加一个变量判断当前是否关麦， 如果关麦把设置给歌词组件的pitch改为0
+     * 开关麦
+     * @param mute true 关麦 false 开麦
      */
-    fun setMicStatus(isOnMicOpen: Boolean)
+    fun muteMic(mute: Boolean)
 
     /**
      * 设置当前音频播放delay， 适用于音频自采集的情况

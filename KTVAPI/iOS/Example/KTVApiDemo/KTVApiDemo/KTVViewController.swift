@@ -44,10 +44,10 @@ class KTVViewController: UIViewController {
     let oriBtn: UIButton = UIButton()
     let accBtn: UIButton = UIButton()
     let leadBtn: UIButton = UIButton()
-    
+
     let muteBtn: UIButton = UIButton()
     let unmuteBtn: UIButton = UIButton()
-    
+
     private var loadMusicCallBack:((Bool, String)->Void)?
     
     override func viewDidLoad() {
@@ -141,7 +141,6 @@ class KTVViewController: UIViewController {
         unmuteBtn.setTitle("关麦", for: .normal)
         unmuteBtn.addTarget(self, action: #selector(unmute), for: .touchUpInside)
         view.addSubview(unmuteBtn)
-
 
     }
     
@@ -297,7 +296,7 @@ extension KTVViewController {
             SVProgressHUD.showInfo(withStatus: "当前身份不支持该操作")
         }
     }
-    
+
     @objc private func mute() {
         self.ktvApi.muteMic(muteStatus: true)
     }
@@ -305,6 +304,7 @@ extension KTVViewController {
     @objc private func unmute() {
         self.ktvApi.muteMic(muteStatus: false)
     }
+
 }
 
 extension KTVViewController: AgoraRtcEngineDelegate {
