@@ -689,6 +689,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     }
 
     override fun setLrcView(view: ILrcView) {
+        reportCallScenarioApi("setLrcView", JSONObject())
         this.lrcView = view
     }
 
