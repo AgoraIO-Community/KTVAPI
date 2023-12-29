@@ -126,9 +126,6 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 }
             }
 
-            btLoadMusic.setOnClickListener {
-                if (KeyCenter.isMcc) {
-
             // 加载音乐
             btLoadMusic.setOnClickListener {
                 if (KeyCenter.isMcc) {
@@ -272,7 +269,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         ktvApi.initialize(ktvApiConfig)
         ktvApi.addEventHandler(ktvApiEventHandler)
         ktvApi.setLrcView(object : ILrcView {
-            override fun onUpdatePitch(pitch: Float) {
+            override fun onUpdatePitch(pitch: Float?) {
             }
 
             override fun onUpdateProgress(progress: Long?) {
