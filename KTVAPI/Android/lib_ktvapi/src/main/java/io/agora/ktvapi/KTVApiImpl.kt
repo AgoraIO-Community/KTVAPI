@@ -1179,7 +1179,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                 val realPosition = jsonMsg.getLong("ts")
                 val songId = jsonMsg.getString("songId")
                 val curTs = if (this.songIdentifier == songId) realPosition else 0
-                Log.d("setLrcTimeForAudience", "curTs: $curTs")
+                ktvApiLog("setLrcTimeForAudience curTs: $curTs")
                 runOnMainThread {
                     lrcView?.onUpdatePitch(pitch.toFloat())
                     // (fix ENT-489)Make lyrics delay for 200ms
