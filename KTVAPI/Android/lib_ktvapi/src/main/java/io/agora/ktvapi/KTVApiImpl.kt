@@ -114,7 +114,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         ktvApiLog("event: $event, params:$params")
         mRtcEngine.sendCustomReportMessage(
             "scenarioAPI",
-            "1_android_4.0.0",
+            "1_android_4.3.0",
             event,
             params.toString(),
             0)
@@ -321,6 +321,27 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                     parameters = "{\"rtc.enableMultipath\": $enable, \"rtc.path_scheduling_strategy\": 0}"
                 }, subChorusConnection)
             }
+        }
+    }
+
+    override fun switchAudioTrack(mode: AudioTrackMode) {
+        reportCallScenarioApi("switchAudioTrack", JSONObject().put("mode", mode))
+        when (singerRole) {
+            KTVSingRole.LeadSinger, KTVSingRole.SoloSinger -> {
+                when (mode) {
+                    AudioTrackMode.YUAN_CHANG -> mPlayer.selectMultiAudioTrack(0, 0)
+                    AudioTrackMode.BAN_ZOU -> mPlayer.selectMultiAudioTrack(1, 1)
+                    AudioTrackMode.DAO_CHANG -> mPlayer.selectMultiAudioTrack(0, 1)
+                }
+            }
+            KTVSingRole.CoSinger -> {
+                when (mode) {
+                    AudioTrackMode.YUAN_CHANG -> mPlayer.selectAudioTrack(0)
+                    AudioTrackMode.BAN_ZOU -> mPlayer.selectAudioTrack(1)
+                    AudioTrackMode.DAO_CHANG -> ktvApiLogError("CoSinger can not switch to DAO_CHANG")
+                }
+            }
+            KTVSingRole.Audience -> ktvApiLogError("CoSinger can not switch audio track")
         }
     }
 
@@ -1018,7 +1039,7 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     // 开始播放歌词
     private val displayLrcTask = object : Runnable {
         override fun run() {
-            if (!mStopDisplayLrc){
+            if (!mStopDisplayLrc && singerRole != KTVSingRole.Audience){
                 val lastReceivedTime = mLastReceivedPlayPosTime ?: return
                 val curTime = System.currentTimeMillis()
                 val offset = curTime - lastReceivedTime

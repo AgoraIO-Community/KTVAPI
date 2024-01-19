@@ -127,47 +127,17 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
             // 开原唱：仅领唱和合唱者可以做这项操作
             btOriginal.setOnClickListener {
-                when (KeyCenter.role) {
-                    KTVSingRole.LeadSinger -> {
-                        ktvApi.getMediaPlayer().selectMultiAudioTrack(0, 0)
-                    }
-                    KTVSingRole.CoSinger -> {
-                        ktvApi.getMediaPlayer().selectAudioTrack(0)
-                    }
-                    else -> {
-                        toast(getString(R.string.app_no_premission))
-                    }
-                }
+                ktvApi.switchAudioTrack(AudioTrackMode.YUAN_CHANG)
             }
 
             // 开伴奏：仅领唱和合唱者可以做这项操作
             btAcc.setOnClickListener {
-                when (KeyCenter.role) {
-                    KTVSingRole.LeadSinger -> {
-                        ktvApi.getMediaPlayer().selectMultiAudioTrack(1, 1)
-                    }
-                    KTVSingRole.CoSinger -> {
-                        ktvApi.getMediaPlayer().selectAudioTrack(1)
-                    }
-                    else -> {
-                        toast(getString(R.string.app_no_premission))
-                    }
-                }
+                ktvApi.switchAudioTrack(AudioTrackMode.BAN_ZOU)
             }
 
             // 开导唱：仅领唱可以做这项操作，开启后领唱本地听到歌曲原唱，但观众听到仍为伴奏
             btDaoChang.setOnClickListener {
-                when (KeyCenter.role) {
-                    KTVSingRole.LeadSinger -> {
-                        ktvApi.getMediaPlayer().selectMultiAudioTrack(0, 1)
-                    }
-                    KTVSingRole.CoSinger -> {
-                        toast(getString(R.string.app_no_premission))
-                    }
-                    else -> {
-                        toast(getString(R.string.app_no_premission))
-                    }
-                }
+                ktvApi.switchAudioTrack(AudioTrackMode.DAO_CHANG)
             }
 
             // 加载音乐
