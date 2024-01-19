@@ -280,11 +280,6 @@ interface KTVApi {
     fun release()
 
     /**
-     * 开启关闭专业模式
-     */
-    fun enableProfessionalStreamerMode(enable: Boolean)
-
-    /**
      * 收到 IKTVApiEventHandler.onTokenPrivilegeWillExpire 回调时需要主动调用方法更新Token
      * @param rtmToken musicContentCenter模块需要的rtm token
      * @param chorusChannelRtcToken 合唱需要的频道rtc token
@@ -504,4 +499,14 @@ interface KTVApi {
      * 获取mcc实例
      */
     fun getMusicContentCenter() : IAgoraMusicContentCenter
+
+    /**
+     * 开启关闭专业模式
+     */
+    fun enableProfessionalStreamerMode(enable: Boolean)
+
+    /**
+     * 开启 Multipathing, 默认开
+     */
+    fun enableMulitpathing(enable: Boolean)
 }

@@ -98,6 +98,9 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
     // mpk状态
     private var mediaPlayerState: MediaPlayerState = MediaPlayerState.PLAYER_STATE_IDLE
 
+    // multipath
+    private var enableMultipathing = true
+
     companion object{
         private val scheduledThreadPool: ScheduledExecutorService = Executors.newScheduledThreadPool(5)
     }
@@ -210,8 +213,15 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             mRtcEngine.setParameters("{\"che.audio.aiaec.working_mode\":1}")
         }
 
+        // 歌词强同步需要在audio4环境
         mRtcEngine.setParameters("{\"rtc.use_audio4\": true}")
-        mRtcEngine.setParameters("{\"rtc.max_audio_metadata_length\": 200}")
+
+        // mutipath
+        enableMultipathing = true
+        mRtcEngine.setParameters("{\"rtc.enableMultipath\": true}")
+        mRtcEngine.setParameters("{\"rtc.enable_tds_request_on_join\": true}")
+        mRtcEngine.setParameters("{\"rtc.remote_path_scheduling_strategy\": 0}")
+        mRtcEngine.setParameters("{\"rtc.path_scheduling_strategy\": 0}")
     }
 
     override fun addEventHandler(ktvApiEventHandler: IKTVApiEventHandler) {
@@ -292,6 +302,25 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
             mRtcEngine.setParameters("{\"che.audio.ans.enable\": true}")
             mRtcEngine.setParameters("{\"che.audio.md.enable\": false}")
             mRtcEngine.setAudioProfile(3) // AgoraAudioProfileMusicStandardStereo
+        }
+    }
+
+    override fun enableMulitpathing(enable: Boolean) {
+        reportCallScenarioApi("enableMulitpathing", JSONObject().put("enable", enable))
+        this.enableMultipathing = enable
+        mRtcEngine.setParameters("{\"rtc.enableMultipath\": $enable}")
+        if (enable) {
+            mRtcEngine.setParameters("{\"rtc.enable_tds_request_on_join\": true}")
+            mRtcEngine.setParameters("{\"rtc.remote_path_scheduling_strategy\": 0}")
+            mRtcEngine.setParameters("{\"rtc.path_scheduling_strategy\": 0}")
+        }
+
+        if (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.CoSinger) {
+            subChorusConnection?.let {
+                mRtcEngine.updateChannelMediaOptionsEx(ChannelMediaOptions().apply {
+                    parameters = "{\"rtc.enableMultipath\": $enable, \"rtc.path_scheduling_strategy\": 0}"
+                }, subChorusConnection)
+            }
         }
     }
 
@@ -892,7 +921,9 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
         channelMediaOption.enableAudioRecordingOrPlayout =
             newRole != KTVSingRole.LeadSinger
         channelMediaOption.clientRoleType = CLIENT_ROLE_BROADCASTER
-        channelMediaOption.parameters = "{\"rtc.use_audio4\": true}"
+        if (enableMultipathing) {
+            channelMediaOption.parameters = "{\"rtc.path_scheduling_strategy\":0, \"rtc.enableMultipath\": true}"
+        }
 
         val rtcConnection = RtcConnection()
         rtcConnection.channelId = ktvApiConfig.chorusChannelName
@@ -950,11 +981,6 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                     super.onAudioVolumeIndication(speakers, totalVolume)
                     ktvApiEventHandlerList.forEach { it.onChorusChannelAudioVolumeIndication(speakers, totalVolume) }
                 }
-
-                override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
-                    super.onAudioMetadataReceived(uid, data)
-                    dealWithStreamMessage(data)
-                }
             }
         handlerEx = handler
         mRtcEngine.addHandlerEx(handler, rtcConnection)
@@ -1007,12 +1033,6 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
                             .setUid(ktvApiConfig.localUid)
                             .build()
 
-//                        val msg: MutableMap<String?, Any?> = HashMap()
-//                        msg["cmd"] = "setLrcTime"
-//                        msg["ts"] = curTs
-//                        msg["songId"] = stringHashToInt32(songIdentifier)
-//                        msg["forward"] = true
-//                        val jsonMsg = JSONObject(msg)
                         val re = mRtcEngine.sendAudioMetadata(lrcTime.toByteArray())
                         ktvApiLog("sendAudioMetadata, $lrcTime, length: ${lrcTime.toByteArray().size} ret: $re")
                     }
@@ -1152,34 +1172,14 @@ class KTVApiImpl : KTVApi, IMusicContentCenterEventHandler, IMediaPlayerObserver
 
     override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
         super.onAudioMetadataReceived(uid, data)
-        val jsonMsg: JSONObject
         val messageData = data ?: return
         try {
 
-            val lrcTime = LrcTimeOuterClass.LrcTime.parseFrom(data)
+            val lrcTime = LrcTimeOuterClass.LrcTime.parseFrom(messageData)
             if (lrcTime.type == LrcTimeOuterClass.MsgType.LRC_TIME) { //同步歌词
                 val realPosition = lrcTime.ts
                 val songId = lrcTime.songId
-                //val curTs = if (this.songIdentifier == songId) realPosition else 0
-                ktvApiLog("setLrcTimeForAudience curTs: $realPosition")
-                runOnMainThread {
-                    lrcView?.onUpdatePitch(pitch.toFloat())
-                    // (fix ENT-489)Make lyrics delay for 200ms
-                    // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
-                    // such as AEC/Player/Device buffer.
-                    // We choose the estimated 200ms.
-                    lrcView?.onUpdateProgress(if (realPosition > 200) (realPosition - 200) else realPosition) // The delay here will impact both singer and audience side
-                }
-            }
-
-
-            val strMsg = String(messageData)
-            jsonMsg = JSONObject(strMsg)
-            if (jsonMsg.getString("cmd") == "setLrcTime") { //同步歌词
-                val realPosition = jsonMsg.getLong("ts")
-                val songId = jsonMsg.getString("songId")
                 val curTs = if (this.songIdentifier == songId) realPosition else 0
-                ktvApiLog("setLrcTimeForAudience curTs: $curTs")
                 runOnMainThread {
                     lrcView?.onUpdatePitch(pitch.toFloat())
                     // (fix ENT-489)Make lyrics delay for 200ms
