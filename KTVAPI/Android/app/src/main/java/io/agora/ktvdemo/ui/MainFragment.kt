@@ -54,6 +54,9 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
             // 选择加载歌曲的类型， MCC 声网歌曲中心或者本地歌曲
             groupSongType.setOnCheckedChangeListener { _, checkedId -> KeyCenter.isMcc = checkedId == R.id.rbtMccSong }
 
+            // 选择体验 KTVApi 的类型， 普通合唱或者大合唱
+            ktvApiType.setOnCheckedChangeListener { _, checkedId -> KeyCenter.isNormalChorus = checkedId == R.id.rbtNormalChorus}
+
             // 开始体验按钮
             btnStartChorus.setOnClickListener {
                 if (KeyCenter.channelId.isEmpty()){

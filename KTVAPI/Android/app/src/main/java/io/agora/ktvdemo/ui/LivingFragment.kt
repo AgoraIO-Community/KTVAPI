@@ -15,6 +15,7 @@ import io.agora.ktvapi.*
 import io.agora.ktvdemo.BuildConfig
 import io.agora.ktvdemo.MyApplication
 import io.agora.ktvdemo.R
+import io.agora.ktvdemo.api.CloudApiManager
 import io.agora.ktvdemo.databinding.FragmentLivingBinding
 import io.agora.ktvdemo.rtc.RtcEngineController
 import io.agora.ktvdemo.utils.DownloadUtils
@@ -22,6 +23,7 @@ import io.agora.ktvdemo.utils.KeyCenter
 import io.agora.ktvdemo.utils.ZipUtils
 import io.agora.rtc2.ChannelMediaOptions
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.random.Random
 
 /*
@@ -37,14 +39,14 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
     /*
      * KTVAPI 实例
      */
-    private val ktvApi: KTVApi by lazy {
-        createKTVApi()
-    }
+    private lateinit var ktvApi: KTVApi
 
     /*
      * KTVAPI 事件
      */
     private val ktvApiEventHandler = object : IKTVApiEventHandler() {}
+
+    private val scheduledThreadPool = Executors.newScheduledThreadPool(5)
 
     override fun getViewBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentLivingBinding {
         return FragmentLivingBinding.inflate(inflater)
@@ -52,6 +54,13 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // 大合唱模式下主唱需要启动云端合流
+        if (KeyCenter.role == KTVSingRole.LeadSinger && !KeyCenter.isNormalChorus) {
+            scheduledThreadPool.execute {
+                CloudApiManager.getInstance().fetchStartCloud(KeyCenter.channelId)
+            }
+        }
 
         initView()
         initKTVApi()
@@ -263,20 +272,41 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
      * 初始化 KTVAPI
      */
     private fun initKTVApi() {
-        val ktvApiConfig = KTVApiConfig(
-            BuildConfig.AGORA_APP_ID,
-            RtcEngineController.rtmToken,
-            RtcEngineController.rtcEngine,
-            KeyCenter.channelId,
-            KeyCenter.localUid,
-            "${KeyCenter.channelId}_ex",
-            RtcEngineController.chorusChannelRtcToken,
-            10,
-            KTVType.Normal,
-            if (KeyCenter.isMcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL
-        )
-        // 初始化 ktvapi 模块
-        ktvApi.initialize(ktvApiConfig)
+        if (KeyCenter.isNormalChorus) {
+            // 创建普通合唱ktvapi实例
+            ktvApi = createKTVApi(
+                KTVApiConfig(
+                    appId = BuildConfig.AGORA_APP_ID,
+                    rtmToken = RtcEngineController.rtmToken,
+                    engine = RtcEngineController.rtcEngine,
+                    channelName = KeyCenter.channelId,
+                    localUid = KeyCenter.localUid,
+                    chorusChannelName = "${KeyCenter.channelId}_ex",
+                    chorusChannelToken = RtcEngineController.chorusChannelRtcToken,
+                    maxCacheSize = 10,
+                    type = KTVType.Normal,
+                    musicType = if (KeyCenter.isMcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL
+                )
+            )
+        } else {
+            // 创建大合唱ktvapi实例
+            ktvApi = createKTVGiantChorusApi(
+                KTVGiantChorusApiConfig(
+                    appId = BuildConfig.AGORA_APP_ID,
+                    rtmToken = RtcEngineController.rtmToken,
+                    engine = RtcEngineController.rtcEngine,
+                    localUid = KeyCenter.localUid,
+                    audienceChannelName = KeyCenter.channelId + "_ad",
+                    audienceChannelToken = "",
+                    chorusChannelName = KeyCenter.channelId,
+                    chorusChannelToken = RtcEngineController.rtcToken,
+                    musicStreamUid = 10,
+                    musicChannelToken = RtcEngineController.chorusChannelRtcToken,
+                    musicType = if (KeyCenter.isMcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL,
+                    topN = 6
+                )
+            )
+        }
         // 注册 ktvapi 事件
         ktvApi.addEventHandler(ktvApiEventHandler)
         // 设置歌词组件

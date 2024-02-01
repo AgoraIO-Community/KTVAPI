@@ -30,6 +30,11 @@ object KeyCenter {
     var isMcc: Boolean = true
 
     /*
+     * 体验 KTVAPI 的类型， true为普通合唱、false为大合唱
+     */
+    var isNormalChorus: Boolean = true
+
+    /*
      * 当前演唱中的身份
      */
     var role: KTVSingRole = KTVSingRole.LeadSinger
