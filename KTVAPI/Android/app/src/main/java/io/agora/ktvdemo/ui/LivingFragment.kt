@@ -145,7 +145,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 if (KeyCenter.isMcc) {
                     // 使用声网版权中心歌单
                     val musicConfiguration = KTVLoadMusicConfiguration(
-                        KeyCenter.songCode.toString(), false, KeyCenter.LeadSingerUid,
+                        KeyCenter.songCode.toString(), KeyCenter.LeadSingerUid,
                         if (KeyCenter.role == KTVSingRole.Audience) KTVLoadMusicMode.LOAD_LRC_ONLY else KTVLoadMusicMode.LOAD_MUSIC_AND_LRC
                     )
                     ktvApi.loadMusic(KeyCenter.songCode, musicConfiguration, object : IMusicLoadStateListener {
@@ -176,7 +176,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                             }
                         }
 
-                        override fun onMusicLoadFail(songCode: Long, reason: KTVLoadSongFailReason) {
+                        override fun onMusicLoadFail(songCode: Long, reason: KTVLoadMusicFailReason) {
                             Log.d("Music", "onMusicLoadFail, songCode: $songCode, reason: $reason")
                         }
 
@@ -196,7 +196,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 } else {
                     // 使用本地音乐文件
                     val musicConfiguration = KTVLoadMusicConfiguration(
-                        KeyCenter.songCode.toString(), false, KeyCenter.LeadSingerUid, KTVLoadMusicMode.LOAD_NONE
+                        KeyCenter.songCode.toString(), KeyCenter.LeadSingerUid, KTVLoadMusicMode.LOAD_NONE
                     )
                     val songPath = requireActivity().filesDir.absolutePath + File.separator
                     val songName = "成都"
@@ -331,7 +331,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         if (KeyCenter.isMcc) {
             // 使用声网版权中心歌单
             val musicConfiguration = KTVLoadMusicConfiguration(
-                KeyCenter.songCode.toString(), false, KeyCenter.LeadSingerUid,
+                KeyCenter.songCode.toString(), KeyCenter.LeadSingerUid,
                 if (KeyCenter.role == KTVSingRole.Audience) KTVLoadMusicMode.LOAD_LRC_ONLY else KTVLoadMusicMode.LOAD_MUSIC_AND_LRC
             )
             ktvApi.loadMusic(KeyCenter.songCode, musicConfiguration, object : IMusicLoadStateListener {
@@ -352,7 +352,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                     }
                 }
 
-                override fun onMusicLoadFail(songCode: Long, reason: KTVLoadSongFailReason) {
+                override fun onMusicLoadFail(songCode: Long, reason: KTVLoadMusicFailReason) {
                     Log.d("Music", "onMusicLoadFail, songCode: $songCode, reason: $reason")
                 }
 
@@ -372,7 +372,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         } else {
             // 使用本地音乐文件
             val musicConfiguration = KTVLoadMusicConfiguration(
-                KeyCenter.songCode.toString(), false, KeyCenter.LeadSingerUid, KTVLoadMusicMode.LOAD_NONE
+                KeyCenter.songCode.toString(), KeyCenter.LeadSingerUid, KTVLoadMusicMode.LOAD_NONE
             )
             val songPath = requireActivity().filesDir.absolutePath + File.separator
             val songName = "成都"
