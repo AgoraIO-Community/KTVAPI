@@ -1,19 +1,15 @@
 package io.agora.ktvdemo.ui
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.navigation.fragment.findNavController
 import io.agora.karaoke_view.v11.KaraokeView
 import io.agora.ktvapi.*
 import io.agora.ktvdemo.BuildConfig
-import io.agora.ktvdemo.MyApplication
 import io.agora.ktvdemo.R
 import io.agora.ktvdemo.api.CloudApiManager
 import io.agora.ktvdemo.databinding.FragmentLivingBinding
@@ -22,9 +18,10 @@ import io.agora.ktvdemo.utils.DownloadUtils
 import io.agora.ktvdemo.utils.KeyCenter
 import io.agora.ktvdemo.utils.ZipUtils
 import io.agora.rtc2.ChannelMediaOptions
+import io.agora.rtc2.IRtcEngineEventHandler
+import io.agora.rtc2.RtcConnection
 import java.io.File
 import java.util.concurrent.Executors
-import kotlin.random.Random
 
 /*
  * K 歌体验页面
@@ -208,15 +205,15 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                         KeyCenter.songCode.toString(), KeyCenter.LeadSingerUid, KTVLoadMusicMode.LOAD_NONE
                     )
                     val songPath = requireActivity().filesDir.absolutePath + File.separator
-                    val songName = "成都"
-                    ktvApi.loadMusic("$songPath$songName.mp3", musicConfiguration)
+                    val songName = "不如跳舞"
+                    ktvApi.loadMusic("$songPath$songName.mp4", musicConfiguration)
                     val fileLrc = File("$songPath$songName.xml")
                     val lyricsModel = KaraokeView.parseLyricsData(fileLrc)
                     karaokeView?.lyricsData = lyricsModel
                     if (KeyCenter.role == KTVSingRole.LeadSinger) {
                         ktvApi.switchSingerRole(KTVSingRole.LeadSinger, object : ISwitchRoleStateListener {
                             override fun onSwitchRoleSuccess() {
-                                ktvApi.startSing("$songPath$songName.mp3", 0)
+                                ktvApi.startSing("$songPath$songName.mp4", 0)
                             }
 
                             override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
@@ -297,11 +294,12 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                     engine = RtcEngineController.rtcEngine,
                     localUid = KeyCenter.localUid,
                     audienceChannelName = KeyCenter.channelId + "_ad",
-                    audienceChannelToken = "",
+                    audienceChannelToken = RtcEngineController.audienceChannelToken,
                     chorusChannelName = KeyCenter.channelId,
-                    chorusChannelToken = RtcEngineController.rtcToken,
-                    musicStreamUid = 10,
-                    musicChannelToken = RtcEngineController.chorusChannelRtcToken,
+                    chorusChannelToken = RtcEngineController.chorusChannelRtcToken,
+                    musicStreamUid = 2023,
+                    musicStreamToken = RtcEngineController.musicStreamToken,
+                    maxCacheSize = 10,
                     musicType = if (KeyCenter.isMcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL,
                     topN = 6
                 )
@@ -343,12 +341,33 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             publishMicrophoneTrack = KeyCenter.role != KTVSingRole.Audience
             clientRoleType = if (KeyCenter.role == KTVSingRole.Audience) io.agora.rtc2.Constants.CLIENT_ROLE_AUDIENCE else io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
         }
-        RtcEngineController.rtcEngine.joinChannel(
-            RtcEngineController.rtcToken,
-            KeyCenter.channelId,
-            KeyCenter.localUid,
-            channelMediaOptions
-        )
+
+        if (KeyCenter.isNormalChorus) {
+            // 普通合唱或独唱加入频道
+            RtcEngineController.rtcEngine.joinChannel(
+                RtcEngineController.audienceChannelToken,
+                KeyCenter.channelId,
+                KeyCenter.localUid,
+                channelMediaOptions
+            )
+        } else {
+            // 大合唱加入频道
+            RtcEngineController.rtcEngine.joinChannelEx(
+                RtcEngineController.audienceChannelToken,
+                RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid),
+                channelMediaOptions,
+                object : IRtcEngineEventHandler() {
+                    override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
+                        (ktvApi as KTVGiantChorusApiImpl).setAudienceStreamMessage(uid, streamId, data)
+                    }
+
+                    override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
+                        super.onAudioMetadataReceived(uid, data)
+                        (ktvApi as KTVGiantChorusApiImpl).setAudienceAudioMetadataReceived(uid, data)
+                    }
+                }
+            )
+        }
 
         // 加入频道后需要更新数据传输通道
         ktvApi.renewInnerDataStreamId()
@@ -405,15 +424,15 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 KeyCenter.songCode.toString(), KeyCenter.LeadSingerUid, KTVLoadMusicMode.LOAD_NONE
             )
             val songPath = requireActivity().filesDir.absolutePath + File.separator
-            val songName = "成都"
-            ktvApi.loadMusic("$songPath$songName.mp3", musicConfiguration)
+            val songName = "不如跳舞"
+            ktvApi.loadMusic("$songPath$songName.mp4", musicConfiguration)
             val fileLrc = File("$songPath$songName.xml")
             val lyricsModel = KaraokeView.parseLyricsData(fileLrc)
             karaokeView?.lyricsData = lyricsModel
             if (KeyCenter.role == KTVSingRole.LeadSinger) {
                 ktvApi.switchSingerRole(KTVSingRole.LeadSinger, object : ISwitchRoleStateListener {
                     override fun onSwitchRoleSuccess() {
-                        ktvApi.startSing("$songPath$songName.mp3", 0)
+                        ktvApi.startSing("$songPath$songName.mp4", 0)
                     }
 
                     override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {

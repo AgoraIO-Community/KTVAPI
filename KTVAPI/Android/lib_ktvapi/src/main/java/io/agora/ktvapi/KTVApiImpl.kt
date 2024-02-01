@@ -28,9 +28,9 @@ class KTVApiImpl(
     }
 
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
-    private lateinit var mRtcEngine: RtcEngineEx
+    private var mRtcEngine: RtcEngineEx = ktvApiConfig.engine as RtcEngineEx
     private lateinit var mMusicCenter: IAgoraMusicContentCenter
-    private lateinit var mPlayer: IMediaPlayer
+    private var mPlayer: IMediaPlayer
 
     private var innerDataStreamId: Int = 0
     private var subChorusConnection: RtcConnection? = null
@@ -61,7 +61,6 @@ class KTVApiImpl(
     private var localPlayerSystemTime: Long = 0
 
     //歌词实时刷新
-    private var mStopDisplayLrc = true
     private var mReceivedPlayPosition: Long = 0 //播放器播放position，ms
     private var mLastReceivedPlayPosTime: Long? = null
 
@@ -88,6 +87,57 @@ class KTVApiImpl(
     private var professionalModeOpen = false
     private var audioRouting = 0
     private var isPublishAudio = false // 通过是否发音频流判断
+
+    // 开始播放歌词
+    private var mStopDisplayLrc = true
+    private var displayLrcFuture: ScheduledFuture<*>? = null
+    private val displayLrcTask = object : Runnable {
+        override fun run() {
+            if (!mStopDisplayLrc && singerRole != KTVSingRole.Audience){
+                val lastReceivedTime = mLastReceivedPlayPosTime ?: return
+                val curTime = System.currentTimeMillis()
+                val offset = curTime - lastReceivedTime
+                if (offset <= 1000) {
+                    val curTs = mReceivedPlayPosition + offset + highStartTime
+                    if (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger) {
+                        val lrcTime = LrcTimeOuterClass.LrcTime.newBuilder()
+                            .setTypeValue(LrcTimeOuterClass.MsgType.LRC_TIME.number)
+                            .setForward(true)
+                            .setSongId(songIdentifier)
+                            .setTs(curTs)
+                            .setUid(ktvApiConfig.localUid)
+                            .build()
+
+                        mRtcEngine.sendAudioMetadata(lrcTime.toByteArray())
+                    }
+                    runOnMainThread {
+                        lrcView?.onUpdatePitch(pitch.toFloat())
+                        // (fix ENT-489)Make lyrics delay for 200ms
+                        // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
+                        // such as AEC/Player/Device buffer.
+                        // We choose the estimated 200ms.
+                        lrcView?.onUpdateProgress(if (curTs > 200) (curTs - 200) else curTs) // The delay here will impact both singer and audience side
+                    }
+                }
+            }
+        }
+    }
+
+    // 音高同步
+    private var mStopSyncPitch = true
+    private var mSyncPitchFuture :ScheduledFuture<*>? = null
+    private val mSyncPitchTask = Runnable {
+        if (!mStopSyncPitch) {
+            if (ktvApiConfig.type == KTVType.SingRelay &&
+                (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger || singerRole == KTVSingRole.CoSinger) &&
+                isOnMicOpen) {
+                sendSyncPitch(pitch)
+            } else if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING &&
+                (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger)) {
+                sendSyncPitch(pitch)
+            }
+        }
+    }
 
     init {
         if (ktvApiConfig.musicType == KTVMusicType.SONG_CODE) {
@@ -642,6 +692,11 @@ class KTVApiImpl(
     override fun startSing(songCode: Long, startPos: Long) {
         reportCallScenarioApi("startSing", JSONObject().put("songCode", songCode).put("startPos", startPos))
         ktvApiLog("playSong called: $singerRole")
+        if (singerRole != KTVSingRole.SoloSinger && singerRole != KTVSingRole.LeadSinger) {
+            ktvApiLogError("startSing failed: error singerRole")
+            return
+        }
+
         if (this.songCode != songCode) {
             ktvApiLogError("startSing failed: canceled")
             return
@@ -655,6 +710,11 @@ class KTVApiImpl(
 
     override fun startSing(url: String, startPos: Long) {
         reportCallScenarioApi("startSing", JSONObject().put("url", url).put("startPos", startPos))
+        if (singerRole != KTVSingRole.SoloSinger && singerRole != KTVSingRole.LeadSinger) {
+            ktvApiLogError("startSing failed: error singerRole")
+            return
+        }
+
         if (this.songUrl != url && this.songUrl2 != url) {
             ktvApiLogError("startSing failed: canceled")
             return
@@ -977,41 +1037,6 @@ class KTVApiImpl(
     }
 
     // ------------------ 歌词播放、同步 ------------------
-    // 开始播放歌词
-    private val displayLrcTask = object : Runnable {
-        override fun run() {
-            if (!mStopDisplayLrc && singerRole != KTVSingRole.Audience){
-                val lastReceivedTime = mLastReceivedPlayPosTime ?: return
-                val curTime = System.currentTimeMillis()
-                val offset = curTime - lastReceivedTime
-                if (offset <= 1000) {
-                    val curTs = mReceivedPlayPosition + offset + highStartTime
-                    if (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger) {
-                        val lrcTime = LrcTimeOuterClass.LrcTime.newBuilder()
-                            .setTypeValue(LrcTimeOuterClass.MsgType.LRC_TIME.number)
-                            .setForward(true)
-                            .setSongId(songIdentifier)
-                            .setTs(curTs)
-                            .setUid(ktvApiConfig.localUid)
-                            .build()
-
-                        val re = mRtcEngine.sendAudioMetadata(lrcTime.toByteArray())
-                        ktvApiLog("sendAudioMetadata, $lrcTime, length: ${lrcTime.toByteArray().size} ret: $re")
-                    }
-                    runOnMainThread {
-                        lrcView?.onUpdatePitch(pitch.toFloat())
-                        // (fix ENT-489)Make lyrics delay for 200ms
-                        // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
-                        // such as AEC/Player/Device buffer.
-                        // We choose the estimated 200ms.
-                        lrcView?.onUpdateProgress(if (curTs > 200) (curTs - 200) else curTs) // The delay here will impact both singer and audience side
-                    }
-                }
-            }
-        }
-    }
-
-    private var displayLrcFuture: ScheduledFuture<*>? = null
     private fun startDisplayLrc() {
         ktvApiLog("startDisplayLrc called")
         mStopDisplayLrc = false
@@ -1030,22 +1055,6 @@ class KTVApiImpl(
     }
 
     // ------------------ 音高pitch同步 ------------------
-//    private var mSyncPitchThread: Thread? = null
-    private var mStopSyncPitch = true
-
-    private val mSyncPitchTask = Runnable {
-        if (!mStopSyncPitch) {
-            if (ktvApiConfig.type == KTVType.SingRelay &&
-                (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger || singerRole == KTVSingRole.CoSinger) &&
-                isOnMicOpen) {
-                sendSyncPitch(pitch)
-            } else if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING &&
-                (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger)) {
-                sendSyncPitch(pitch)
-            }
-        }
-    }
-
     private fun sendSyncPitch(pitch: Double) {
         val msg: MutableMap<String?, Any?> = java.util.HashMap()
         msg["cmd"] = "setVoicePitch"
@@ -1055,7 +1064,6 @@ class KTVApiImpl(
     }
 
     // 开始同步音高
-    private var mSyncPitchFuture :ScheduledFuture<*>? = null
     private fun startSyncPitch() {
         mStopSyncPitch = false
         mSyncPitchFuture = scheduledThreadPool.scheduleAtFixedRate(mSyncPitchTask,0,50,TimeUnit.MILLISECONDS)

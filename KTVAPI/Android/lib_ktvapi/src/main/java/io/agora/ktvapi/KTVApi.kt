@@ -274,7 +274,7 @@ data class KTVApiConfig constructor(
  * @param chorusChannelName 演唱频道名 加入演唱频道需要用到
  * @param chorusChannelToken 演唱频道token 加入演唱频道需要用到
  * @param musicStreamUid 音乐Uid 主唱推入频道
- * @param musicChannelToken 音乐流token
+ * @param musicStreamToken 音乐流token
  * @param maxCacheSize 最大缓存歌曲数
  * @param musicType 音乐类型
  * @param topN 演唱之间互相能听到的最大数量
@@ -289,7 +289,7 @@ data class KTVGiantChorusApiConfig constructor(
     val chorusChannelName: String,
     val chorusChannelToken: String,
     val musicStreamUid: Int,
-    val musicChannelToken: String,
+    val musicStreamToken: String,
     val maxCacheSize: Int = 10,
     val musicType: KTVMusicType = KTVMusicType.SONG_CODE,
     val topN: Int = 0

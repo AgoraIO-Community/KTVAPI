@@ -12,7 +12,7 @@ object KeyCenter {
     /*
      * 测试歌曲的 songCode
      */
-    const val songCode: Long = 6625526607662280
+    const val songCode: Long = 6625526603433040
 
     /*
      * 加入的频道名
