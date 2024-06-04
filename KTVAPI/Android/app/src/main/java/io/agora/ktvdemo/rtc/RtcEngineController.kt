@@ -25,7 +25,7 @@ object RtcEngineController {
             if (innerRtcEngine == null) {
                 val config = RtcEngineConfig()
                 config.mContext = MyApplication.app()
-                config.mAppId = "*****************************"
+                config.mAppId = BuildConfig.AGORA_APP_ID
                 config.mEventHandler = object : IRtcEngineEventHandler() {
                     override fun onError(err: Int) {
                         super.onError(err)
@@ -50,8 +50,8 @@ object RtcEngineController {
             return innerRtcEngine!!
         }
 
-    var chorusChannelRtcToken = ""
-    var audienceChannelToken = ""
+    var audienceChannelToken: String = ""
+    var chorusChannelToken: String = ""
     var musicStreamToken = ""
     var rtmToken = ""
 }
