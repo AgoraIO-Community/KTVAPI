@@ -306,7 +306,7 @@ extension KTVApiImpl: KTVApiDelegate {
         self.localPlayerPosition = 0
         self.remotePlayerPosition = 0
         self.mLastSetPlayPosTime = 0
-        _loadMusic(config: config, mode: config.mode, onMusicLoadStateListener: onMusicLoadStateListener)
+        _loadMusic(songId: songCode, config: config, mode: config.mode, onMusicLoadStateListener: onMusicLoadStateListener)
     }
     
     func loadMusic(config: KTVSongConfiguration, url: String) {
@@ -1037,7 +1037,7 @@ extension KTVApiImpl {
         }
     }
     
-    private func _loadMusic(config: KTVSongConfiguration, mode: KTVLoadMusicMode, onMusicLoadStateListener: IMusicLoadStateListener){
+    private func _loadMusic(songId: Int, config: KTVSongConfiguration, mode: KTVLoadMusicMode, onMusicLoadStateListener: IMusicLoadStateListener){
         printLog(message: "加入合唱07")
         songConfig = config
         lastReceivedPosition = 0
@@ -1058,9 +1058,9 @@ extension KTVApiImpl {
                 if let lyricPath = lyricPath, !lyricPath.isEmpty {
 //                    self.lyricUrlMap[String(self.songCode)] = lyricPath
                     self.lrcControl?.onDownloadLrcData(lrcPath: lyricPath, pitchPath: pitchPath)
-                    onMusicLoadStateListener.onMusicLoadSuccess(songCode: self.songCode, lyricUrl: lyricPath)
+                    onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: lyricPath)
                 } else {
-                    onMusicLoadStateListener.onMusicLoadFail(songCode: self.songCode, reason: .noLyricUrl)
+                    onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .noLyricUrl)
                 }
                 
                 if (config.autoPlay) {
@@ -1070,20 +1070,20 @@ extension KTVApiImpl {
 //
 //                        }
 //                    }
-                    self.startSing(songCode: self.songCode, startPos: 0)
+                    self.startSing(songCode: songId, startPos: 0)
                 }
             }
         } else {
             loadMusicListeners.setObject(onMusicLoadStateListener, forKey: "\(self.songCode)" as NSString)
-            onMusicLoadStateListener.onMusicLoadProgress(songCode: self.songCode, percent: 0, status: .preloading, msg: "", lyricUrl: "")
+            onMusicLoadStateListener.onMusicLoadProgress(songCode: songId, percent: 0, status: .preloading, msg: "", lyricUrl: "")
             // TODO: 只有未缓存时才显示进度条
             if mcc?.isPreload(songCode) != 0 {
-                onMusicLoadStateListener.onMusicLoadProgress(songCode: self.songCode, percent: 0, status: .preloading, msg: "", lyricUrl: "")
+                onMusicLoadStateListener.onMusicLoadProgress(songCode: songId, percent: 0, status: .preloading, msg: "", lyricUrl: "")
             }
             preloadMusic(with: songCode) { [weak self] status, songCode in
                 guard let self = self else { return }
                 if self.songCode != songCode {
-                    onMusicLoadStateListener.onMusicLoadFail(songCode: songCode, reason: .cancled)
+                    onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .cancled)
                     return
                 }
                 if status == .preloadOK {
@@ -1093,15 +1093,15 @@ extension KTVApiImpl {
                             guard let self = self else { return }
                             agoraPrint("loadMusicAndLrc: songCode:\(songCode) status:\(status.rawValue) lyricPath:\(lyricPath ?? "") pitchPath: \(pitchPath ?? "")")
                             if self.songCode != songCode {
-                                onMusicLoadStateListener.onMusicLoadFail(songCode: songCode, reason: .cancled)
+                                onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .cancled)
                                 return
                             }
                             if let lyricPath = lyricPath, !lyricPath.isEmpty {
 //                                self.lyricUrlMap[String(songCode)] = lyricPath
                                 self.lrcControl?.onDownloadLrcData(lrcPath: lyricPath, pitchPath: pitchPath)
-                                onMusicLoadStateListener.onMusicLoadSuccess(songCode: songCode, lyricUrl: lyricPath)
+                                onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: lyricPath)
                             } else {
-                                onMusicLoadStateListener.onMusicLoadFail(songCode: songCode, reason: .noLyricUrl)
+                                onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .noLyricUrl)
                             }
                             if config.autoPlay {
 //                                if self.singerRole != .leadSinger {
@@ -1109,7 +1109,7 @@ extension KTVApiImpl {
 //
 //                                    }
 //                                }
-                                self.startSing(songCode: self.songCode, startPos: 0)
+                                self.startSing(songCode: songId, startPos: 0)
                             }
                         }
                     } else if mode == .loadMusicOnly {
@@ -1121,13 +1121,13 @@ extension KTVApiImpl {
 //
 //                                }
 //                            }
-                            self.startSing(songCode: self.songCode, startPos: 0)
+                            self.startSing(songCode: songId, startPos: 0)
                         }
-                        onMusicLoadStateListener.onMusicLoadSuccess(songCode: songCode, lyricUrl: "")
+                        onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: "")
                     }
                 } else {
                     agoraPrint("load music failed songCode:\(songCode)")
-                    onMusicLoadStateListener.onMusicLoadFail(songCode: songCode, reason: .musicPreloadFail)
+                    onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .musicPreloadFail)
                 }
             }
         }
