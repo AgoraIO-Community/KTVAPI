@@ -420,6 +420,7 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
         this.songMode = KTVMusicType.SONG_CODE
 
         val code = mMusicCenter.getInternalSongCode(songCode.toString(), null)
+        Log.d(TAG, "loadMusic internal songCode $code")
         // 设置到全局， 连续调用以最新的为准
         this.songCode = code
 
@@ -438,19 +439,19 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                 if (this.songCode != song) {
                     // 当前歌曲已发生变化，以最新load歌曲为准
                     Log.e(TAG, "loadMusic failed: CANCELED")
-                    musicLoadStateListener.onMusicLoadFail(song, KTVLoadSongFailReason.CANCELED)
+                    musicLoadStateListener.onMusicLoadFail(songCode, KTVLoadSongFailReason.CANCELED)
                     return@loadLyricAndPitch
                 }
 
                 if (lyricUrl == null) {
                     // 加载歌词失败
                     Log.e(TAG, "loadMusic failed: NO_LYRIC_URL")
-                    musicLoadStateListener.onMusicLoadFail(song, KTVLoadSongFailReason.NO_LYRIC_URL)
+                    musicLoadStateListener.onMusicLoadFail(songCode, KTVLoadSongFailReason.NO_LYRIC_URL)
                 } else {
                     // 加载歌词成功
                     Log.d(TAG, "loadMusic success")
                     lrcView?.onDownloadLrcData(lyricUrl, pitchUrl)
-                    musicLoadStateListener.onMusicLoadSuccess(song, lyricUrl)
+                    musicLoadStateListener.onMusicLoadSuccess(songCode, lyricUrl)
                 }
             }
             return
@@ -463,7 +464,7 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                 if (this.songCode != song) {
                     // 当前歌曲已发生变化，以最新load歌曲为准
                     Log.e(TAG, "loadMusic failed: CANCELED")
-                    musicLoadStateListener.onMusicLoadFail(song, KTVLoadSongFailReason.CANCELED)
+                    musicLoadStateListener.onMusicLoadFail(songCode, KTVLoadSongFailReason.CANCELED)
                     return@preLoadMusic
                 }
                 if (config.mode == KTVLoadMusicMode.LOAD_MUSIC_AND_LRC) {
@@ -473,7 +474,7 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                             // 当前歌曲已发生变化，以最新load歌曲为准
                             Log.e(TAG, "loadMusic failed: CANCELED")
                             musicLoadStateListener.onMusicLoadFail(
-                                song,
+                                songCode,
                                 KTVLoadSongFailReason.CANCELED
                             )
                             return@loadLyricAndPitch
@@ -483,7 +484,7 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                             // 加载歌词失败
                             Log.e(TAG, "loadMusic failed: NO_LYRIC_URL")
                             musicLoadStateListener.onMusicLoadFail(
-                                song,
+                                songCode,
                                 KTVLoadSongFailReason.NO_LYRIC_URL
                             )
                         } else {
@@ -491,20 +492,20 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                             Log.d(TAG, "loadMusic success")
                             lrcView?.onDownloadLrcData(lyricUrl, pitchUrl)
                             musicLoadStateListener.onMusicLoadProgress(
-                                song,
+                                songCode,
                                 100,
                                 MusicLoadStatus.COMPLETED,
                                 msg,
                                 lrcUrl
                             )
-                            musicLoadStateListener.onMusicLoadSuccess(song, lyricUrl)
+                            musicLoadStateListener.onMusicLoadSuccess(songCode, lyricUrl)
                         }
 
                         if (config.autoPlay) {
                             // 主唱自动播放歌曲
                             if (ktvApiConfig.type == KTVType.Normal)
                                 switchSingerRole(KTVSingRole.SoloSinger, null)
-                            startSing(song, 0)
+                            startSing(songCode, 0)
                         }
                     }
                 } else if (config.mode == KTVLoadMusicMode.LOAD_MUSIC_ONLY) {
@@ -514,21 +515,21 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                         // 主唱自动播放歌曲
                         if (ktvApiConfig.type == KTVType.Normal)
                             switchSingerRole(KTVSingRole.SoloSinger, null)
-                        startSing(song, 0)
+                        startSing(songCode, 0)
                     }
                     musicLoadStateListener.onMusicLoadProgress(
-                        song,
+                        songCode,
                         100,
                         MusicLoadStatus.COMPLETED,
                         msg,
                         lrcUrl
                     )
-                    musicLoadStateListener.onMusicLoadSuccess(song, "")
+                    musicLoadStateListener.onMusicLoadSuccess(songCode, "")
                 }
             } else if (status == MccExState.PRELOAD_STATE_PRELOADING) {
                 // 预加载歌曲加载中
                 musicLoadStateListener.onMusicLoadProgress(
-                    song,
+                    songCode,
                     percent,
                     MusicLoadStatus.INPROGRESS,
                     msg,
@@ -537,7 +538,7 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
                 // 预加载歌曲失败
                 Log.e(TAG, "loadMusic failed: MUSIC_PRELOAD_FAIL:${status}")
                 musicLoadStateListener.onMusicLoadFail(
-                    song, KTVLoadSongFailReason.MUSIC_PRELOAD_FAIL
+                    songCode, KTVLoadSongFailReason.MUSIC_PRELOAD_FAIL
                 )
             }
         }
@@ -574,15 +575,16 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
     }
 
     override fun startSing(songCode: Long, startPos: Long) {
-        Log.d(TAG, "playSong called: $singerRole")
+        Log.d(TAG, "playSong called: $singerRole songCode: $songCode")
+        val code = mMusicCenter.getInternalSongCode(songCode.toString(), null)
         if (ktvApiConfig.type == KTVType.Cantata) {
-            if (this.songCode != songCode) {
+            if (this.songCode != code) {
                 Log.e(TAG, "startSing failed: canceled")
                 return
             }
         }
 //        mRtcEngine.adjustPlaybackSignalVolume(remoteVolume)
-        mPlayer.open(songCode, startPos)
+        mPlayer.open(code, startPos)
     }
 
     override fun startSing(url: String, startPos: Long) {
@@ -1913,10 +1915,14 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
         if (this.songCode == songCode) {
             this.singingScore = value.linePitchScore
         }
-        lrcView?.onLineScore(songCode, value)
+        runOnMainThread {
+            lrcView?.onLineScore(songCode, value)
+        }
     }
 
     override fun onPitch(songCode: Long, data: RawScoreData) {
-        lrcView?.onPitch(songCode, data)
+        runOnMainThread {
+            lrcView?.onPitch(songCode, data)
+        }
     }
 }
