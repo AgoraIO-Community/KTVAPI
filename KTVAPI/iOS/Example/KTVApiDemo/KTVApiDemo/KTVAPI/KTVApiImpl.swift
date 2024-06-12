@@ -129,6 +129,8 @@ class KTVApiImpl: NSObject{
     private var dataStreamId: Int = 0
     var lastReceivedPosition: TimeInterval = 0
     private var localPosition: Int = 0
+    // key: songCode, value: songId
+    private var songCodeMap: [Int: Int] = [:]
     
     private var songMode: KTVSongMode = .songCode
     private var useCustomAudioSource:Bool = false
@@ -298,6 +300,7 @@ extension KTVApiImpl: KTVApiDelegate {
 
     func loadMusic(songCode: Int, config: KTVSongConfiguration, onMusicLoadStateListener: IMusicLoadStateListener) {
         let _songCode = mcc?.getInternalSongCode("\(songCode)", jsonOption: nil) ?? 0
+        self.songCodeMap.updateValue(songCode, forKey:_songCode)
         agoraPrint("loadMusic songCode:\(_songCode) ")
         printLog(message: "加入合唱06")
         self.songMode = .songCode
@@ -354,6 +357,7 @@ extension KTVApiImpl: KTVApiDelegate {
         lyricCallbacks.removeAll()
         musicCallbacks.removeAll()
         scoreCallbacks.removeAll()
+        songCodeMap.removeAll()
         onJoinExChannelCallBack = nil
         stopSyncCloudConvergenceStatus()
         stopSyncScore()
@@ -1293,7 +1297,7 @@ extension KTVApiImpl: AgoraRtcEngineDelegate {
     func rtcEngine(_ engine: AgoraRtcEngineKit, reportAudioVolumeIndicationOfSpeakers speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int) {
         let _ = speakers.map{
             let str = "ddddde正在说话的uid: \($0.uid)---" + "volume: \($0.volume)---"
-            printLog(message: "--------------\(str)")
+//            printLog(message: "--------------\(str)")
         }
         getEventHander { delegate in
             delegate.onChorusChannelAudioVolumeIndication(speakers: speakers, totalVolume: totalVolume)
@@ -1856,10 +1860,13 @@ extension KTVApiImpl: AgoraMusicContentCenterExEventDelegate {
     }
     
     func onPreLoadEvent(_ requestId: String, songCode: Int, percent: Int, lyricPath: String?, pitchPath: String?, offsetBegin: Int, offsetEnd: Int, state: AgoraMusicContentCenterExState, reason: AgoraMusicContentCenterExStateReason) {
-        agoraPrint("onPreLoadEvent[\(songCode)] state: \(state.rawValue) reason: \(reason.rawValue)")
+        guard let songId = self.songCodeMap[songCode] else {
+            return
+        }
+        agoraPrint("onPreLoadEvent[\(songId)] state: \(state.rawValue) reason: \(reason.rawValue)")
         DispatchQueue.main.async {
             if let listener = self.loadMusicListeners.object(forKey: "\(songCode)" as NSString) as? IMusicLoadStateListener {
-                listener.onMusicLoadProgress(songCode: songCode, percent: percent, status: state, msg: String(reason.rawValue), lyricUrl: lyricPath ?? "")
+                listener.onMusicLoadProgress(songCode: songId, percent: percent, status: state, msg: String(reason.rawValue), lyricUrl: lyricPath ?? "")
             }
             if (state == .preloading) { return }
             TWLog("songCode:\(songCode), status:\(reason.rawValue), code:\(reason.rawValue)")
