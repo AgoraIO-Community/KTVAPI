@@ -1063,7 +1063,6 @@ extension KTVApiImpl {
 //                    self.lyricUrlMap[String(self.songCode)] = lyricPath
                     self.lrcControl?.onDownloadLrcData(lrcPath: lyricPath, pitchPath: pitchPath)
                     onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: lyricPath)
-                    onMusicLoadStateListener.onMusicLoadProgress(songCode: songId, percent: 1, status: .preloadOK, msg: "", lyricUrl: "")
                 } else {
                     onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .noLyricUrl)
                 }
@@ -1105,6 +1104,7 @@ extension KTVApiImpl {
 //                                self.lyricUrlMap[String(songCode)] = lyricPath
                                 self.lrcControl?.onDownloadLrcData(lrcPath: lyricPath, pitchPath: pitchPath)
                                 onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: lyricPath)
+                                onMusicLoadStateListener.onMusicLoadProgress(songCode: songId, percent: 100, status: .preloadOK, msg: "", lyricUrl: lyricPath)
                             } else {
                                 onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .noLyricUrl)
                             }
@@ -1129,6 +1129,7 @@ extension KTVApiImpl {
                             self.startSing(songCode: songId, startPos: 0)
                         }
                         onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: "")
+                        onMusicLoadStateListener.onMusicLoadProgress(songCode: songId, percent: 100, status: .preloadOK, msg: "", lyricUrl: "")
                     }
                 } else {
                     agoraPrint("load music failed songCode:\(songCode)")
