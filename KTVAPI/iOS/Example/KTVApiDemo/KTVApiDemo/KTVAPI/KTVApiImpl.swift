@@ -1063,6 +1063,7 @@ extension KTVApiImpl {
 //                    self.lyricUrlMap[String(self.songCode)] = lyricPath
                     self.lrcControl?.onDownloadLrcData(lrcPath: lyricPath, pitchPath: pitchPath)
                     onMusicLoadStateListener.onMusicLoadSuccess(songCode: songId, lyricUrl: lyricPath)
+                    onMusicLoadStateListener.onMusicLoadProgress(songCode: songId, percent: 1, status: .preloadOK, msg: "", lyricUrl: "")
                 } else {
                     onMusicLoadStateListener.onMusicLoadFail(songCode: songId, reason: .noLyricUrl)
                 }
@@ -1805,7 +1806,7 @@ extension KTVApiImpl: AgoraRtcMediaPlayerDelegate {
             self.localPlayerPosition = Date().milListamp
             agoraPrint("localPlayerPosition:playerKit:openCompleted \(localPlayerPosition)")
             self.playerDuration = TimeInterval(musicPlayer?.getDuration() ?? 0)
-            playerKit.selectAudioTrack(1)
+//            playerKit.selectAudioTrack(1)
             if isMainSinger() { //主唱播放，通过同步消息“setLrcTime”通知伴唱play
                 playerKit.play()
             }
@@ -1866,7 +1867,9 @@ extension KTVApiImpl: AgoraMusicContentCenterExEventDelegate {
         agoraPrint("onPreLoadEvent[\(songId)] state: \(state.rawValue) reason: \(reason.rawValue)")
         DispatchQueue.main.async {
             if let listener = self.loadMusicListeners.object(forKey: "\(songCode)" as NSString) as? IMusicLoadStateListener {
-                listener.onMusicLoadProgress(songCode: songId, percent: percent, status: state, msg: String(reason.rawValue), lyricUrl: lyricPath ?? "")
+                if (percent < 100) {
+                    listener.onMusicLoadProgress(songCode: songId, percent: percent, status: state, msg: String(reason.rawValue), lyricUrl: lyricPath ?? "")
+                }
             }
             if (state == .preloading) { return }
             TWLog("songCode:\(songCode), status:\(reason.rawValue), code:\(reason.rawValue)")
