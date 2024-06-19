@@ -434,6 +434,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                     }
                 }
             )
+            RtcEngineController.rtcEngine.setParametersEx("{\"rtc.use_audio4\": true}", RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid))
         }
 
         // 加入频道后需要更新数据传输通道
