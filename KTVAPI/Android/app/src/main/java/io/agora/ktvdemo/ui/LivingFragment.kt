@@ -62,12 +62,12 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         initView()
         initKTVApi()
         joinChannel()
-        loadMusic()
 
         // 设置麦克风初始状态，主唱默认开麦
         if (KeyCenter.role == KTVSingRole.LeadSinger) {
             ktvApi.muteMic(false)
         }
+        loadMusic()
     }
 
     override fun onDestroy() {
