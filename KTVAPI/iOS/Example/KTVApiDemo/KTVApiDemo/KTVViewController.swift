@@ -32,7 +32,7 @@ class KTVViewController: UIViewController {
     let coSingerId = 2000
     let audienceId = 3000
     
-    let mccSongCode = 6625526603433040
+    let mccSongCode = 7162848697922600
     
     var lyricView: KTVLyricView!
     
@@ -454,7 +454,7 @@ extension KTVViewController: AgoraRtcEngineDelegate {
 }
 
 extension KTVViewController: IMusicLoadStateListener {
-    func onMusicLoadProgress(songCode: Int, percent: Int, status: AgoraMusicContentCenterPreloadStatus, msg: String?, lyricUrl: String?) {
+    func onMusicLoadProgress(songCode: Int, percent: Int, state: AgoraMusicContentCenterPreloadState, msg: String?, lyricUrl: String?) {
         //歌曲加载进度
         print("歌曲加载进度:\(percent)%")
     }
@@ -476,7 +476,7 @@ extension KTVViewController: IMusicLoadStateListener {
 }
 
 extension KTVViewController: KTVApiEventHandlerDelegate {
-    func onMusicPlayerStateChanged(state: AgoraMediaPlayerState, error: AgoraMediaPlayerError, isLocal: Bool) {
+    func onMusicPlayerStateChanged(state: AgoraMediaPlayerState, reason: AgoraMediaPlayerReason, isLocal: Bool) {
         
     }
     

@@ -223,7 +223,7 @@ class ApiManager {
 
     private func getBasicAuth() -> String {
         // 拼接客户 ID 和客户密钥并使用 base64 编码
-        let plainCredentials = "\(KeyCenter.CloudPlayerKey!):\(KeyCenter.CloudPlayerSecret!)"
+        let plainCredentials = "\(KeyCenter.RestfulApiKey!):\(KeyCenter.RestfulApiSecret!)"
         guard let base64Credentials = plainCredentials.data(using: .utf8)?.base64EncodedString() else {
             return ""
         }
