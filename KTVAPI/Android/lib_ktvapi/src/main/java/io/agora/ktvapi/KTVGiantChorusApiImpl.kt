@@ -320,7 +320,7 @@ class KTVGiantChorusApiImpl(
         if (!isPublishAudio) return // 必须为麦上者
         if (professionalModeOpen) {
             // 专业
-            if (audioRouting == 0 || audioRouting == 2 || audioRouting == 5 || audioRouting == 6) {
+            if (audioRouting == AUDIO_ROUTE_HEADSET || audioRouting == AUDIO_ROUTE_HEADSETNOMIC || audioRouting == AUDIO_ROUTE_BLUETOOTH_DEVICE_HFP || audioRouting == AUDIO_ROUTE_USBDEVICE || audioRouting == AUDIO_ROUTE_BLUETOOTH_DEVICE_A2DP) {
                 // 耳机 关闭3A 关闭md
                 mRtcEngine.setParameters("{\"che.audio.aec.enable\": false}")
                 mRtcEngine.setParameters("{\"che.audio.agc.enable\": false}")
