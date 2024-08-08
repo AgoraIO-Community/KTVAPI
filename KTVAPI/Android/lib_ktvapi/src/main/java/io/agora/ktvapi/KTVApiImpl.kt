@@ -1073,8 +1073,12 @@ class KTVApiImpl(
         }
         handlerEx = handler
         mRtcEngine.addHandlerEx(handler, rtcConnection)
-        mRtcEngine.setParametersEx("{\"rtc.path_scheduling_strategy\":0, \"rtc.enableMultipath\": true, \"rtc.remote_path_scheduling_strategy\": 0}", rtcConnection)
-
+        if (enableMultipathing) {
+            mRtcEngine.setParametersEx(
+                "{\"rtc.path_scheduling_strategy\":0, \"rtc.enableMultipath\": true, \"rtc.remote_path_scheduling_strategy\": 0}",
+                rtcConnection
+            )
+        }
         if (ret != 0) {
             ktvApiLogError("joinChorus2ndChannel failed: $ret")
         }
