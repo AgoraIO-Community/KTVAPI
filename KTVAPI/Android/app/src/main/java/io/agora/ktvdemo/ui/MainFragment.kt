@@ -65,10 +65,10 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                     toast(getString(R.string.app_appid_check))
                     return@setOnClickListener
                 }
-                if (!KeyCenter.isNormalChorus && BuildConfig.RESTFUL_API_KEY.isEmpty()) {
-                    toast(getString(R.string.app_restful_check))
-                    return@setOnClickListener
-                }
+//                if (!KeyCenter.isNormalChorus && BuildConfig.RESTFUL_API_KEY.isEmpty()) {
+//                    toast(getString(R.string.app_restful_check))
+//                    return@setOnClickListener
+//                }
                 if (KeyCenter.channelId.isEmpty()){
                     toast(getString(R.string.app_input_channel_name))
                     return@setOnClickListener

@@ -53,7 +53,7 @@ class APIReporter(
 
     // 上报普通场景化API
     fun reportFuncEvent(name: String, value: Map<String, Any>, ext: Map<String, Any>) {
-        Log.d(tag, "reportFuncEvent: $name value: $value ext: $ext")
+        writeLog("reportFuncEvent: $name value: $value ext: $ext", Constants.LOG_LEVEL_INFO)
         val eventMap = mapOf(ApiEventKey.TYPE to ApiEventType.API.value, ApiEventKey.DESC to name)
         val labelMap = mapOf(ApiEventKey.API_VALUE to value, ApiEventKey.TIMESTAMP to getCurrentTs(), ApiEventKey.EXT to ext)
         val event = convertToJSONString(eventMap) ?: ""
