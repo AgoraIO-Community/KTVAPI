@@ -189,10 +189,9 @@ class KTVViewController: UIViewController {
 
                 self.ktvApi.addEventHandler(ktvApiEventHandler: self)
                 
-                self.rtcKit.setParameters("{\"rtc.use_audio4\": true}")
-                
                 let connection = AgoraRtcConnection(channelId: "\(channelName)_ad", localUid: self.userId)
                 let _ = self.rtcKit.joinChannelEx(byToken: audienceToken, connection: connection, delegate: self, mediaOptions: self.mediaOptions())
+                self.rtcKit.setParametersEx("{\"rtc.use_audio4\": true}", connection: connection)
                 
                 self.loadMusic()
             }
