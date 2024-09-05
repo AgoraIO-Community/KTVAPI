@@ -16,6 +16,7 @@ import io.agora.ktvdemo.databinding.FragmentLivingBinding
 import io.agora.ktvdemo.rtc.RtcEngineController
 import io.agora.ktvdemo.utils.DownloadUtils
 import io.agora.ktvdemo.utils.KeyCenter
+import io.agora.ktvdemo.utils.TokenGenerator
 import io.agora.ktvdemo.utils.ZipUtils
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
@@ -54,9 +55,30 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
         // 大合唱模式下主唱需要启动云端合流
         if (KeyCenter.role == KTVSingRole.LeadSinger && !KeyCenter.isNormalChorus) {
-            scheduledThreadPool.execute {
-                CloudApiManager.getInstance().fetchStartCloud(KeyCenter.channelId)
-            }
+
+            TokenGenerator.generateToken("${KeyCenter.channelId}_ad", CloudApiManager.outputUid.toString(),
+                TokenGenerator.TokenGeneratorType.token007, TokenGenerator.AgoraTokenType.rtc,
+                success = { outputToken ->
+                    TokenGenerator.generateToken(KeyCenter.channelId, "0",
+                        TokenGenerator.TokenGeneratorType.token007, TokenGenerator.AgoraTokenType.rtc,
+                        success = { inputToken ->
+                            scheduledThreadPool.execute {
+                                CloudApiManager.getInstance().fetchStartCloud(
+                                    KeyCenter.channelId,
+                                    inputToken,
+                                    outputToken
+                                )
+                            }
+                        },
+                        failure = {
+                            toast("云端合流启动失败, token获取失败")
+                        }
+                    )
+                },
+                failure = {
+                    toast("云端合流启动失败, token获取失败")
+                }
+            )
         }
 
         initView()
@@ -88,6 +110,9 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 ktvApi.removeEventHandler(ktvApiEventHandler)
                 ktvApi.release()
                 RtcEngineController.rtcEngine.leaveChannel()
+                scheduledThreadPool.execute {
+                    CloudApiManager.getInstance().fetchStopCloud()
+                }
                 findNavController().popBackStack()
             }
             if (KeyCenter.role == KTVSingRole.LeadSinger) {

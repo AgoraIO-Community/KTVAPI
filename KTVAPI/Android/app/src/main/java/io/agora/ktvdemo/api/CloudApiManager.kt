@@ -28,7 +28,7 @@ class CloudApiManager private constructor() {
         //private const val testIp = "218.205.37.50"
         private const val domain = "https://api.sd-rtn.com"
         private const val TAG = "ApiManager"
-        private const val cloudRtcUid = 20232023
+        const val outputUid = 20232023
     }
 
     internal object InstanceHolder {
@@ -77,7 +77,7 @@ class CloudApiManager private constructor() {
         return token
     }
 
-    fun fetchStartCloud(mainChannel: String) {
+    fun fetchStartCloud(mainChannel: String, inputToken: String, outputToken: String) {
         val token = fetchCloudToken()
         tokenName = token.ifEmpty {
             Log.e(TAG, "云端合流uid 请求报错 token is null")
@@ -88,7 +88,7 @@ class CloudApiManager private constructor() {
             val transcoderObj = JSONObject()
             val inputRetObj = JSONObject()
                 .put("rtcUid", 0)
-                .put("rtcToken", BuildConfig.AGORA_APP_ID)
+                .put("rtcToken", inputToken)
                 .put("rtcChannel", mainChannel)
             val intObj = JSONObject()
                 .put("rtc", inputRetObj)
@@ -98,8 +98,8 @@ class CloudApiManager private constructor() {
                 .put("profileType", "AUDIO_PROFILE_MUSIC_HIGH_QUALITY_STEREO")
                 .put("fullChannelMixer", "native-mixer-weighted")
             val outputRetObj = JSONObject()
-                .put("rtcUid", cloudRtcUid)
-                .put("rtcToken", BuildConfig.AGORA_APP_ID)
+                .put("rtcUid", outputUid)
+                .put("rtcToken", outputToken)
                 .put("rtcChannel", mainChannel + "_ad")
             val dataStreamObj = JSONObject()
                 .put("source", JSONObject().put("audioMetaData", true))
