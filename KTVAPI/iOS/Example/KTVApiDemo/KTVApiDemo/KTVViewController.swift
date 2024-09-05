@@ -76,11 +76,14 @@ class KTVViewController: UIViewController {
         joinRTCChannel()
         
         if isCantata && role == .leadSinger{
-            ApiManager.shared.fetchStartCloud(mainChannel: self.channelName, cloudRtcUid: 232425) {[weak self] flag in
-                if flag == false {//云端合流失败
-                    SVProgressHUD.show(withStatus: "云端合流失败")
-                } else {
-                    self?.loadKTVApi()
+            getCloudMixerToken(with: "232425") {[weak self] inputToken, outputToken in
+                guard let self = self else {return}
+                ApiManager.shared.fetchStartCloud(mainChannel: self.channelName, cloudRtcUid: 232425, inputToken:inputToken, outputToken:outputToken) {[weak self] flag in
+                    if flag == false {//云端合流失败
+                        SVProgressHUD.show(withStatus: "云端合流失败")
+                    } else {
+                        self?.loadKTVApi()
+                    }
                 }
             }
         } else {
@@ -358,6 +361,38 @@ class KTVViewController: UIViewController {
                 return
             }
             completion(rtcToken, rtmToken, audienceToken, rtcPlayerToken)
+        }
+    }
+    
+    private func getCloudMixerToken(with userId: String, completion:@escaping ((String, String)->Void)) {
+        var tokenMap1:[Int: String] = [:], tokenMap2:[Int: String] = [:]
+        
+        let dispatchGroup = DispatchGroup()
+        dispatchGroup.enter()
+        NetworkManager.shared.generateTokens(channelName: channelName,
+                                             uid: "0",
+                                             tokenGeneratorType: .token007,
+                                             tokenTypes: [.rtc]) { tokenMap in
+            tokenMap1 = tokenMap
+            dispatchGroup.leave()
+        }
+        
+        dispatchGroup.enter()
+        NetworkManager.shared.generateTokens(channelName: "\(channelName)_ad",
+                                             uid: userId,
+                                             tokenGeneratorType: .token007,
+                                             tokenTypes: [.rtc]) { tokenMap in
+            tokenMap2 = tokenMap
+            dispatchGroup.leave()
+        }
+        
+        dispatchGroup.notify(queue: .main){
+           if let inputToken = tokenMap1[NetworkManager.AgoraTokenType.rtc.rawValue],
+              let outputToken = tokenMap2[NetworkManager.AgoraTokenType.rtc.rawValue] {
+               completion(inputToken, outputToken)
+           } else {
+               print("获取合流Token失败")
+           }
         }
     }
     

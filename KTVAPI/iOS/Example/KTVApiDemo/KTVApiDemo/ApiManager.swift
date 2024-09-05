@@ -73,7 +73,7 @@ class ApiManager {
         return token
     }
     
-    func fetchStartCloud(mainChannel: String, cloudRtcUid: Int, completion: @escaping ((Bool)->Void)) {
+    func fetchStartCloud(mainChannel: String, cloudRtcUid: Int, inputToken: String, outputToken: String, completion: @escaping ((Bool)->Void)) {
         let token = fetchCloudToken()
         
         if token == nil {
@@ -87,7 +87,7 @@ class ApiManager {
         do {
             let inputRetObj: [String: Any] = [
                 "rtcUid": 0,
-                "rtcToken": KeyCenter.AppId,
+                "rtcToken": inputToken,
                 "rtcChannel": mainChannel
             ]
             
@@ -100,7 +100,7 @@ class ApiManager {
             
             let outputRetObj: [String: Any] = [
                 "rtcUid": cloudRtcUid,
-                "rtcToken": KeyCenter.AppId,
+                "rtcToken": outputToken,
                 "rtcChannel": "\(mainChannel)_ad"
             ]
             
