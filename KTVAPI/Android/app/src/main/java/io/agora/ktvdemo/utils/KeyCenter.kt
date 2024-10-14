@@ -1,6 +1,6 @@
 package io.agora.ktvdemo.utils
 
-import io.agora.ktvapi.KTVSingRole
+import io.agora.ktvapiex.KTVSingRole
 
 object KeyCenter {
 
@@ -9,10 +9,8 @@ object KeyCenter {
      */
     const val LeadSingerUid = 2024
 
-    /*
-     * 测试歌曲的 songCode
-     */
-    const val songCode: Long = 7162848697922600
+    const val songCode: Long = 40289835
+    const val songCode2: Long = 89488966
 
     /*
      * 加入的频道名

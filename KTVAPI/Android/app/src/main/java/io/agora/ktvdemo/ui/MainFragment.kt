@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.navigation.fragment.findNavController
-import io.agora.ktvapi.KTVSingRole
+import io.agora.ktvapiex.KTVSingRole
 import io.agora.ktvdemo.BuildConfig
 import io.agora.ktvdemo.rtc.IChannelEventListener
 import io.agora.ktvdemo.R
@@ -113,7 +113,6 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                                             RtcEngineController.chorusChannelRtcToken = rtcToken
                                             RtcEngineController.rtmToken = rtmToken
                                             RtcEngineController.audienceChannelToken = audienceToken
-                                            RtcEngineController.musicStreamToken = musicToken
                                             findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
                                         },
                                         failure = {
