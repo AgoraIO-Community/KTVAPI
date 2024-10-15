@@ -26,10 +26,10 @@ android {
         buildConfigField "String", "RESTFUL_API_KEY", "\"${RESTFUL_API_KEY}\""
         buildConfigField "String", "RESTFUL_API_SECRET", "\"${RESTFUL_API_SECRET}\""
 
-        buildConfigField "String", "YSD_APP_ID", "\"${properties.getProperty("YSD_APP_ID", "")}\""
-        buildConfigField "String", "YSD_APP_Key", "\"${properties.getProperty("YSD_APP_Key", "")}\""
-        buildConfigField "String", "YSD_APP_TOKEN", "\"${properties.getProperty("YSD_APP_TOKEN", "")}\""
-        buildConfigField "String", "YSD_USERID", "\"${properties.getProperty("YSD_USERID", "")}\""
+        buildConfigField "String", "EX_APP_ID", "\"${properties.getProperty("EX_APP_ID", "")}\""
+        buildConfigField "String", "EX_APP_Key", "\"${properties.getProperty("EX_APP_Key", "")}\""
+        buildConfigField "String", "EX_APP_TOKEN", "\"${properties.getProperty("EX_APP_TOKEN", "")}\""
+        buildConfigField "String", "EX_USERID", "\"${properties.getProperty("EX_USERID", "")}\""
     }
 
     buildTypes {

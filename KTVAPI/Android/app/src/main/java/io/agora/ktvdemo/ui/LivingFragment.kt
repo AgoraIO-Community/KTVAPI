@@ -298,10 +298,10 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         val contentCenterConfiguration = MusicContentCenterExConfiguration()
         contentCenterConfiguration.context = context
         contentCenterConfiguration.vendorConfigure = YsdVendorConfigure(
-            appId = BuildConfig.YSD_APP_ID,
-            appKey = BuildConfig.YSD_APP_Key,
-            token = BuildConfig.YSD_APP_TOKEN,
-            userId = BuildConfig.YSD_USERID,
+            appId = BuildConfig.EX_APP_ID,
+            appKey = BuildConfig.EX_APP_Key,
+            token = BuildConfig.EX_APP_TOKEN,
+            userId = BuildConfig.EX_USERID,
             deviceId = "2323",
             chargeMode = ChargeMode.ONCE,
             urlTokenExpireTime = 60 * 15
