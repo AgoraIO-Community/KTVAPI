@@ -23,6 +23,8 @@ import io.agora.mccex.model.LineScoreData
 import io.agora.mccex.model.RawScoreData
 import io.agora.mccex.model.YsdVendorConfigure
 import io.agora.rtc2.ChannelMediaOptions
+import io.agora.rtc2.IRtcEngineEventHandler
+import io.agora.rtc2.RtcConnection
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -39,9 +41,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
     /*
      * KTVAPI 实例
      */
-    private val ktvApi: KTVApi by lazy {
-        KTVApiImpl()
-    }
+    private lateinit var ktvApi: KTVApi
 
     /*
      * KTVAPI 事件
@@ -59,16 +59,18 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
         // 大合唱模式下主唱需要启动云端合流
         if (KeyCenter.role == KTVSingRole.LeadSinger && !KeyCenter.isNormalChorus) {
-
-            TokenGenerator.generateToken("${KeyCenter.channelId}_ex", CloudApiManager.outputUid.toString(),
+            TokenGenerator.generateToken("${KeyCenter.channelId}_ad", CloudApiManager.outputUid.toString(),
                 TokenGenerator.TokenGeneratorType.token007, TokenGenerator.AgoraTokenType.rtc,
                 success = { outputToken ->
-                    TokenGenerator.generateToken(KeyCenter.channelId, "0",
+                    // uid
+                    val inputRtcUid = 0
+                    TokenGenerator.generateToken(KeyCenter.channelId, inputRtcUid.toString(),
                         TokenGenerator.TokenGeneratorType.token007, TokenGenerator.AgoraTokenType.rtc,
                         success = { inputToken ->
                             scheduledThreadPool.execute {
                                 CloudApiManager.getInstance().fetchStartCloud(
                                     KeyCenter.channelId,
+                                    inputRtcUid,
                                     inputToken,
                                     outputToken
                                 )
@@ -201,21 +203,34 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             // 开原唱：仅领唱和合唱者可以做这项操作
             btOriginal.setOnClickListener {
                 ktvApi.switchAudioTrack(AudioTrackMode.YUAN_CHANG)
+
+                btOriginal.isActivated = true
+                btAcc.isActivated = false
+                btDaoChang.isActivated = false
             }
 
             // 开伴奏：仅领唱和合唱者可以做这项操作
             btAcc.setOnClickListener {
                 ktvApi.switchAudioTrack(AudioTrackMode.BAN_ZOU)
+
+                btOriginal.isActivated = false
+                btAcc.isActivated = true
+                btDaoChang.isActivated = false
             }
 
             // 开导唱：仅领唱可以做这项操作，开启后领唱本地听到歌曲原唱，但观众听到仍为伴奏
             btDaoChang.setOnClickListener {
                 ktvApi.switchAudioTrack(AudioTrackMode.DAO_CHANG)
+
+                btOriginal.isActivated = false
+                btAcc.isActivated = false
+                btDaoChang.isActivated = true
             }
 
             // 加载音乐
             btLoadMusic.setOnClickListener {
                 loadMusic()
+                btLoadMusic.isActivated = true
             }
 
             // 取消加载歌曲并删除本地歌曲缓存
@@ -232,12 +247,18 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             btMicOn.setOnClickListener {
                 ktvApi.muteMic(false)
                 btMicStatus.text = "麦克风开"
+
+                btMicOn.isActivated = true
+                btMicOff.isActivated = false
             }
 
             // 关麦
             btMicOff.setOnClickListener {
                 ktvApi.muteMic(true)
                 btMicStatus.text = "麦克风关"
+
+                btMicOn.isActivated = false
+                btMicOff.isActivated = true
             }
 
             // 设置麦克风初始状态
@@ -250,6 +271,8 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             btPause.setOnClickListener {
                 if (KeyCenter.role == KTVSingRole.LeadSinger || KeyCenter.role == KTVSingRole.SoloSinger) {
                     ktvApi.pauseSing()
+                    btPlay.isActivated = false
+                    btPause.isActivated = true
                 } else {
                     toast(getString(R.string.app_no_premission))
                 }
@@ -257,6 +280,8 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
             btPlay.setOnClickListener {
                 if (KeyCenter.role == KTVSingRole.LeadSinger || KeyCenter.role == KTVSingRole.SoloSinger) {
+                    btPlay.isActivated = true
+                    btPause.isActivated = false
                     ktvApi.resumeSing()
                 } else {
                     toast(getString(R.string.app_no_premission))
@@ -289,6 +314,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
         mMusicCenter.initialize(contentCenterConfiguration)
 
         if (KeyCenter.isNormalChorus) {
+            ktvApi = KTVApiImpl()
             val ktvApiConfig = KTVApiConfig(
                 BuildConfig.AGORA_APP_ID,
                 mMusicCenter,
@@ -303,29 +329,27 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             )
             ktvApi.initialize(ktvApiConfig)
         } else {
-            // 创建大合唱ktvapi实例
-//            ktvApi = createKTVGiantChorusApi(
-//                KTVGiantChorusApiConfig(
-//                    appId = BuildConfig.AGORA_APP_ID,
-//                    rtmToken = RtcEngineController.rtmToken,
-//                    engine = RtcEngineController.rtcEngine,
-//                    localUid = KeyCenter.localUid,
-//                    audienceChannelName = KeyCenter.channelId + "_ad",
-//                    audienceChannelToken = RtcEngineController.audienceChannelToken,
-//                    chorusChannelName = KeyCenter.channelId,
-//                    chorusChannelToken = RtcEngineController.chorusChannelRtcToken,
-//                    musicStreamUid = 2023,
-//                    musicStreamToken = RtcEngineController.musicStreamToken,
-//                    maxCacheSize = 10,
-//                    musicType = if (KeyCenter.isMcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL
-//                )
-//            )
+            ktvApi = KTVGiantChorusApiImpl()
+            val ktvApiConfig = KTVGiantChorusApiConfig(
+                BuildConfig.AGORA_APP_ID,
+                mMusicCenter,
+                RtcEngineController.rtcEngine,
+                KeyCenter.localUid,              // uid
+                audienceChannelName = KeyCenter.channelId + "_ad",             // 观众频道channelId
+                audienceChannelToken = RtcEngineController.audienceChannelToken, // 观众频道channelId + uid = 加入观众频道的token
+                chorusChannelName = KeyCenter.channelId,  // 演唱频道channelId
+                chorusChannelToken = RtcEngineController.chorusChannelRtcToken,       // 演唱频道channelId + uid = 加入演唱频道的token
+                musicStreamUid = 2023,                  // mpk uid
+                musicStreamToken = RtcEngineController.musicStreamToken,         // 演唱频道channelId + mpk uid = mpk 流加入频道的token
+                maxCacheSize = 10,
+                musicType = KTVMusicType.SONG_CODE
+            )
+            ktvApi.initialize(ktvApiConfig)
         }
         // 注册 ktvapi 事件
         ktvApi.addEventHandler(ktvApiEventHandler)
         // 设置歌词组件
         ktvApi.setLrcView(object : ILrcView {
-
 
             override fun onUpdateProgress(progress: Long?) {
                 karaokeView?.setProgress(progress ?: 0L)
@@ -376,25 +400,50 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             )
         } else {
             // 大合唱加入频道
-//            RtcEngineController.rtcEngine.joinChannelEx(
-//                RtcEngineController.audienceChannelToken,
-//                RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid),
-//                channelMediaOptions,
-//                object : IRtcEngineEventHandler() {
-//                    override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
-//                        (ktvApi as KTVGiantChorusApiImpl).setAudienceStreamMessage(uid, streamId, data)
-//                    }
-//
-//                    override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
-//                        super.onAudioMetadataReceived(uid, data)
-//                        (ktvApi as KTVGiantChorusApiImpl).setAudienceAudioMetadataReceived(uid, data)
-//                    }
-//                }
-//            )
-//            RtcEngineController.rtcEngine.setParametersEx(
-//                "{\"rtc.use_audio4\": true}",
-//                RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid)
-//            )
+            if (KeyCenter.isAudience()) {
+                val channelMediaOptions = ChannelMediaOptions().apply {
+                    autoSubscribeAudio = true
+                    clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_AUDIENCE
+                    autoSubscribeVideo = true
+                    autoSubscribeAudio = true
+                    publishCameraTrack = false
+                    publishMicrophoneTrack = false
+                }
+                RtcEngineController.rtcEngine.joinChannelEx(
+                    RtcEngineController.audienceChannelToken,
+                    RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid),
+                    channelMediaOptions,
+                    object : IRtcEngineEventHandler() {
+                        override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
+//                            (ktvApi as KTVGiantChorusApiImpl).setAudienceStreamMessage(uid, streamId, data)
+                        }
+
+                        override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
+                            super.onAudioMetadataReceived(uid, data)
+                            (ktvApi as KTVGiantChorusApiImpl).setAudienceAudioMetadataReceived(uid, data)
+                        }
+                    }
+                )
+            } else {
+                // 主唱和合唱通过 joinChannel 加入演唱频道
+                val channelMediaOptions = ChannelMediaOptions().apply {
+                    autoSubscribeAudio = true
+                    clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
+                    autoSubscribeVideo = true
+                    autoSubscribeAudio = true
+                    publishCameraTrack = false
+                    publishMicrophoneTrack = true
+                }
+                RtcEngineController.rtcEngine.joinChannel(
+                    RtcEngineController.chorusChannelRtcToken,
+                    KeyCenter.channelId, KeyCenter.localUid,
+                    channelMediaOptions
+                )
+            }
+            RtcEngineController.rtcEngine.setParametersEx(
+                "{\"rtc.use_audio4\": true}",
+                RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid)
+            )
         }
 
         // 加入频道后需要更新数据传输通道

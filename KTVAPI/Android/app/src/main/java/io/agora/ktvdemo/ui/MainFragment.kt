@@ -113,6 +113,7 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                                             RtcEngineController.chorusChannelRtcToken = rtcToken
                                             RtcEngineController.rtmToken = rtmToken
                                             RtcEngineController.audienceChannelToken = audienceToken
+                                            RtcEngineController.musicStreamToken = musicToken
                                             findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
                                         },
                                         failure = {
@@ -137,17 +138,17 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
 
     private fun resetRoleView() {
         binding?.apply {
-            btnLeadSinger.setBackgroundColor(ResourcesCompat.getColor(resources, R.color.lighter_gray, null))
-            btnAudience.setBackgroundColor(ResourcesCompat.getColor(resources, R.color.lighter_gray, null))
+            btnLeadSinger.isActivated = false
+            btnAudience.isActivated = false
         }
     }
 
     private fun setRoleView() {
         binding?.apply {
             if (KeyCenter.role == KTVSingRole.LeadSinger) {
-                btnLeadSinger.setBackgroundColor(ResourcesCompat.getColor(resources, R.color.darker_gray, null))
+                btnLeadSinger.isActivated = true
             } else {
-                btnAudience.setBackgroundColor(ResourcesCompat.getColor(resources, R.color.darker_gray, null))
+                btnAudience.isActivated = true
             }
         }
     }

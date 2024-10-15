@@ -16,7 +16,7 @@ import io.agora.rtc2.RtcEngine
  * @param SingBattle 嗨歌抢唱
  * @param SingRelay 抢麦接唱
  */
-enum class KTVType(val value: Int)  {
+enum class KTVType(val value: Int) {
     Normal(0),
     SingBattle(1),
     SingRelay(2)
@@ -137,8 +137,8 @@ enum class GiantChorusRouteSelectionType(val value: Int) {
  * @param streamNum 最大选取的流个数（推荐6）
  */
 data class GiantChorusRouteSelectionConfig constructor(
-   val type: GiantChorusRouteSelectionType,
-   val streamNum: Int
+    val type: GiantChorusRouteSelectionType,
+    val streamNum: Int
 )
 
 /**
@@ -259,7 +259,9 @@ abstract class IKTVApiEventHandler {
      */
     open fun onChorusChannelAudioVolumeIndication(
         speakers: Array<out IRtcEngineEventHandler.AudioVolumeInfo>?,
-        totalVolume: Int) {}
+        totalVolume: Int
+    ) {
+    }
 
     /**
      * 播放进度回调
@@ -267,6 +269,8 @@ abstract class IKTVApiEventHandler {
      */
     open fun onMusicPlayerPositionChanged(position_ms: Long, timestamp_ms: Long) {}
 }
+
+open class KTVConfig {}
 
 /**
  * 初始化KTVApi的配置
@@ -292,7 +296,7 @@ data class KTVApiConfig constructor(
     val maxCacheSize: Int = 10,
     val type: KTVType = KTVType.Normal,
     val musicType: KTVMusicType = KTVMusicType.SONG_CODE
-) {
+) : KTVConfig() {
     override fun toString(): String {
         return "channelName:$channelName, localUid:$localUid, chorusChannelName:$chorusChannelName, type:$type, musicType:$musicType"
     }
@@ -301,22 +305,21 @@ data class KTVApiConfig constructor(
 /**
  * 初始化KTVGiantChorusApi的配置
  * @param appId 用来初始化 Mcc Engine
- * @param rtmToken 创建 Mcc Engine 需要
+ * @param mMusicCenter IMusicContentCenterEx 对象
  * @param engine RTC engine 对象
  * @param localUid 创建 Mcc engine 和 加入子频道需要用到
  * @param audienceChannelName 观众频道名 加入听众频道需要用到
- * @param chorusChannelToken 观众频道token 加入听众频道需要用到
+ * @param audienceChannelToken 观众频道token 加入听众频道需要用到
  * @param chorusChannelName 演唱频道名 加入演唱频道需要用到
  * @param chorusChannelToken 演唱频道token 加入演唱频道需要用到
  * @param musicStreamUid 音乐Uid 主唱推入频道
  * @param musicStreamToken 音乐流token
  * @param maxCacheSize 最大缓存歌曲数
  * @param musicType 音乐类型
- * @param routeSelectionConfig 选路配置
  */
 data class KTVGiantChorusApiConfig constructor(
     val appId: String,
-    val rtmToken: String,
+    val mMusicCenter: IMusicContentCenterEx,
     val engine: RtcEngine,
     val localUid: Int,
     val audienceChannelName: String,
@@ -327,9 +330,9 @@ data class KTVGiantChorusApiConfig constructor(
     val musicStreamToken: String,
     val maxCacheSize: Int = 10,
     val musicType: KTVMusicType = KTVMusicType.SONG_CODE
-) {
+) : KTVConfig() {
     override fun toString(): String {
-        return "audienceChannelName:$audienceChannelName, localUid:$localUid, chorusChannelName:$chorusChannelName, musicStreamUid:$musicStreamUid, musicType:$musicType"
+        return "localUid=$localUid, audienceChannelName='$audienceChannelName', chorusChannelName='$chorusChannelName', musicStreamUid=$musicStreamUid, musicType=$musicType"
     }
 }
 
@@ -372,26 +375,31 @@ interface KTVApi {
     companion object {
         // 听到远端的音量
         var remoteVolume: Int = 30
+
         // 本地mpk播放音量
         var mpkPlayoutVolume: Int = 50
+
         // mpk发布音量
         var mpkPublishVolume: Int = 50
 
         // 是否使用音频自采集
         var useCustomAudioSource = false
+
         // 调试使用，会输出更多的日志
         var debugMode = false
+
         // 内部测试使用，无需关注
         var mccDomain = ""
+
         // 大合唱的选路策略
         var routeSelectionConfig = GiantChorusRouteSelectionConfig(GiantChorusRouteSelectionType.BY_DELAY, 6)
     }
 
     /**
      * 初始化内部变量/缓存数据，并注册相应的监听，必须在其他KTVApi调用前调用initialize初始化KTVApi
-     * @param config 初始化KTVApi的配置
+     * @param ktvConfig 初始化KTVApi的配置
      */
-    fun initialize(config: KTVApiConfig)
+    fun initialize(ktvConfig: KTVConfig)
 
     /**
      * 更新ktvapi内部使用的streamId，每次加入频道需要更新内部streamId
@@ -467,7 +475,8 @@ interface KTVApi {
     fun loadMusic(
         url: String,
         config: KTVLoadMusicConfiguration
-    ){}
+    ) {
+    }
 
     /**
      * 加载歌曲，同时只能为一首歌loadSong，同步调用， 一般使用此loadSong是歌曲已经preload成功（url为本地文件地址）
@@ -488,16 +497,20 @@ interface KTVApi {
         url1: String,
         url2: String,
         config: KTVLoadMusicConfiguration
-    ){}
+    ) {
+    }
 
     /**
      * 多文件切换播放资源
      * @param url 需要切换的播放资源，需要为 load2Music 中 参数 url1，url2 中的一个
      * @param syncPts 是否同步切换前后的起始播放位置: true 同步，false 不同步，从 0 开始
      */
-    fun switchPlaySrc(url: String, syncPts: Boolean){}
+    fun switchPlaySrc(url: String, syncPts: Boolean) {}
 
-    fun startScore(songCode: Long, onStartScoreCallback: (songCode: Long, status: MccExState, msg: MccExStateReason) -> Unit)
+    fun startScore(
+        songCode: Long,
+        onStartScoreCallback: (songCode: Long, status: MccExState, msg: MccExStateReason) -> Unit
+    )
 
     /**
      * 异步切换演唱身份，结果会通过回调通知业务层
@@ -531,7 +544,7 @@ interface KTVApi {
      * @param url 歌曲地址
      * @param startPos 开始播放的位置
      */
-    fun startSing(url: String, startPos: Long){}
+    fun startSing(url: String, startPos: Long) {}
 
     /**
      * 恢复播放
@@ -569,7 +582,7 @@ interface KTVApi {
     /**
      * 获取mpk实例
      */
-    fun getMediaPlayer() : IMediaPlayer
+    fun getMediaPlayer(): IMediaPlayer
 
     /**
      * 切换音轨, 原唱/伴奏/导唱

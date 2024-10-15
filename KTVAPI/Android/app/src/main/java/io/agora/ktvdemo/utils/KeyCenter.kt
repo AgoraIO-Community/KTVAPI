@@ -36,4 +36,7 @@ object KeyCenter {
      * 当前演唱中的身份
      */
     var role: KTVSingRole = KTVSingRole.LeadSinger
+
+    fun isLeadSinger(): Boolean = localUid == LeadSingerUid
+    fun isAudience(): Boolean = localUid != LeadSingerUid && role != KTVSingRole.CoSinger
 }

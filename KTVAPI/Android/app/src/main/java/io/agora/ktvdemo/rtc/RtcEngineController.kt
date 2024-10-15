@@ -52,5 +52,6 @@ object RtcEngineController {
 
     var chorusChannelRtcToken = ""
     var audienceChannelToken = ""
+    var musicStreamToken = ""
     var rtmToken = ""
 }

@@ -159,7 +159,8 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
         }
     }
 
-    override fun initialize(config: KTVApiConfig) {
+    override fun initialize(ktvConfig: KTVConfig) {
+        val config = ktvConfig as KTVApiConfig
         this.mRtcEngine = config.engine as RtcEngineEx
         this.apiReporter = APIReporter(APIType.KTV, version, mRtcEngine)
         this.ktvApiConfig = config
@@ -1384,6 +1385,11 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
     }
 
     // ------------------------ IMusicContentCenterExEventHandler  ------------------------
+    override fun onInitializeResult(state: MccExState, reason: MccExStateReason) {
+        ktvApiLog("onInitializeResult, state:$state, reason:$reason"
+        )
+    }
+
     override fun onPreLoadEvent(
         requestId: String,
         songCode: Long,
@@ -1416,25 +1422,6 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
         ktvApiLog("onStartScoreResult, songCode:$songCode, state:$state, reason:$reason")
         val callback = startScoreMap.remove(songCode.toString())
         callback?.invoke(songCode, state, reason)
-    }
-
-    // IMusicContentCenterExScoreEventHandler
-    override fun onLineScore(songCode: Long, value: LineScoreData) {
-        runOnMainThread {
-            lrcView?.onLineScore(songCode, value)
-        }
-    }
-
-
-    override fun onPitch(songCode: Long, data: RawScoreData) {
-        runOnMainThread {
-            lrcView?.onUpdatePitch(songCode, data)
-        }
-    }
-
-    // IMusicContentCenterExEventHandler
-    override fun onInitializeResult(state: MccExState, reason: MccExStateReason) {
-
     }
 
     override fun onLyricResult(
@@ -1481,6 +1468,20 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
             return
         }
         callback(songCode, pitchPath)
+    }
+
+    // IMusicContentCenterExScoreEventHandler
+    override fun onLineScore(songCode: Long, value: LineScoreData) {
+        runOnMainThread {
+            lrcView?.onLineScore(songCode, value)
+        }
+    }
+
+
+    override fun onPitch(songCode: Long, data: RawScoreData) {
+        runOnMainThread {
+            lrcView?.onUpdatePitch(songCode, data)
+        }
     }
 
     // ------------------------ AgoraRtcMediaPlayerDelegate ------------------------
