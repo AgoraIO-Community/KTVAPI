@@ -22,7 +22,6 @@ import io.agora.mediaplayer.IMediaPlayer
 import io.agora.mediaplayer.IMediaPlayerObserver
 import io.agora.mediaplayer.data.PlayerUpdatedInfo
 import io.agora.mediaplayer.data.SrcInfo
-import io.agora.musiccontentcenter.IAgoraMusicContentCenter
 import io.agora.musiccontentcenter.Music
 import io.agora.musiccontentcenter.MusicChartInfo
 import io.agora.rtc2.ChannelMediaOptions
@@ -246,7 +245,7 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
 
 //        mPlayer.stop()
         mPlayer.destroy()
-        IAgoraMusicContentCenter.destroy()
+        IMusicContentCenterEx.destroy()
 
         mainSingerHasJoinChannelEx = false
     }
@@ -1840,8 +1839,9 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
         requestId: String,
         songCode: Long,
         lyricPath: String,
-        offsetBegin: Int,
-        offsetEnd: Int,
+        songOffsetBegin: Int,
+        songOffsetEnd: Int,
+        lyricOffset: Int,
         reason: MccExStateReason
     ) {
         Log.d(TAG, "onLyricResult, requestId:$requestId, songCode:$songCode, lyricPath:$lyricPath, reason:$reason")
@@ -1863,8 +1863,8 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
         requestId: String,
         songCode: Long,
         pitchPath: String,
-        offsetBegin: Int,
-        offsetEnd: Int,
+        songOffsetBegin: Int,
+        songOffsetEnd: Int,
         reason: MccExStateReason
     ) {
         Log.d(TAG, "onLyricResult, requestId:$requestId, songCode:$songCode, pitchPath:$pitchPath, reason:$reason")
@@ -1887,8 +1887,9 @@ class GiantChorusKTVApiImpl : KTVApi, IMediaPlayerObserver,
         percent: Int,
         lyricPath: String,
         pitchPath: String,
-        offsetBegin: Int,
-        offsetEnd: Int,
+        songOffsetBegin: Int,
+        songOffsetEnd: Int,
+        lyricOffset: Int,
         state: MccExState,
         reason: MccExStateReason
     ) {
