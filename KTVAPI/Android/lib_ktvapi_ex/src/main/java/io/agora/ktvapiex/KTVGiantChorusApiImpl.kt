@@ -87,6 +87,7 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
 
     // 音高
     private var pitch = 0.0
+    private var progressInMs = 0
 
     // 是否在麦上
     private var isOnMicOpen = false
@@ -132,7 +133,7 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
                         mRtcEngine.sendAudioMetadataEx(lrcTime.toByteArray(), mpkConnection)
                     }
                     runOnMainThread {
-//                        lrcView?.onUpdatePitch(pitch.toFloat())
+                        lrcView?.onUpdatePitch(songCode, pitch, progressInMs)
                         // (fix ENT-489)Make lyrics delay for 200ms
                         // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
                         // such as AEC/Player/Device buffer.
@@ -777,19 +778,20 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
 
                 override fun onAudioVolumeIndication(speakers: Array<out AudioVolumeInfo>?, totalVolume: Int) {
                     val allSpeakers = speakers ?: return
+                    // TODO:  2024/10/17 音高 maccEx 回调
                     // VideoPitch 回调, 用于同步各端音准
-                    if (singerRole != KTVSingRole.Audience) {
-                        for (info in allSpeakers) {
-                            if (info.uid == 0) {
-                                pitch =
-                                    if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING && isOnMicOpen) {
-                                        info.voicePitch
-                                    } else {
-                                        0.0
-                                    }
-                            }
-                        }
-                    }
+//                    if (singerRole != KTVSingRole.Audience) {
+//                        for (info in allSpeakers) {
+//                            if (info.uid == 0) {
+//                                pitch =
+//                                    if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING && isOnMicOpen) {
+//                                        info.voicePitch
+//                                    } else {
+//                                        0.0
+//                                    }
+//                            }
+//                        }
+//                    }
                 }
 
                 // 用于合唱校准
@@ -1420,8 +1422,10 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
                 }
             } else if (jsonMsg.getString("cmd") == "setVoicePitch") {
                 val pitch = jsonMsg.getDouble("pitch")
+                val progressInMs = jsonMsg.getInt("progressInMs")
                 if (this.singerRole == KTVSingRole.Audience) {
                     this.pitch = pitch
+                    this.progressInMs = progressInMs
                 }
             }
         } catch (exp: JSONException) {
@@ -1437,7 +1441,7 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
             val songId = lrcTime.songId
             val curTs = if (this.songIdentifier == songId) realPosition else 0
             runOnMainThread {
-//                lrcView?.onUpdatePitch(pitch.toFloat())
+                lrcView?.onUpdatePitch(songCode, pitch, progressInMs)
                 // (fix ENT-489)Make lyrics delay for 200ms
                 // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
                 // such as AEC/Player/Device buffer.
@@ -1543,9 +1547,13 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
     }
 
     override fun onPitch(songCode: Long, data: RawScoreData) {
-        runOnMainThread {
-            lrcView?.onUpdatePitch(songCode, data)
+        if (this.singerRole != KTVSingRole.Audience) {
+            this.pitch = data.speakerPitch.toDouble()
+            this.progressInMs = data.progressInMs
         }
+//        runOnMainThread {
+//            lrcView?.onUpdatePitch(songCode, data)
+//        }
     }
 
     // ------------------------ AgoraRtcMediaPlayerDelegate ------------------------

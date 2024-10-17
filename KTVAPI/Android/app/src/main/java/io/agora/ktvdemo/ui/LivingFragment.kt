@@ -57,6 +57,10 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val sceneName = if (KeyCenter.isNormalChorus) getString(R.string.app_normal_ktvapi_tag)
+        else getString(R.string.app_giant_ktvapi_tag)
+        binding?.tvChorusScene?.text = "$sceneName Channel:${KeyCenter.channelId}"
+
         // 大合唱模式下主唱需要启动云端合流
         if (KeyCenter.role == KTVSingRole.LeadSinger && !KeyCenter.isNormalChorus) {
             TokenGenerator.generateToken("${KeyCenter.channelId}_ad", CloudApiManager.outputUid.toString(),
@@ -148,24 +152,33 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                     ktvApi.loadMusic(songCode, musicConfiguration, object : IMusicLoadStateListener {
                         override fun onMusicLoadSuccess(songCode: Long, lyricUrl: String) {
                             Log.d("Music", "onMusicLoadSuccess, songCode: $songCode, lyricUrl: $lyricUrl")
-                            // 切换身份为合唱者
-                            ktvApi.switchSingerRole(KTVSingRole.CoSinger, object : ISwitchRoleStateListener {
-                                override fun onSwitchRoleSuccess() {
-                                    mainHandler.post {
-                                        toast("加入合唱成功，自动开麦")
-                                        ktvApi.muteMic(false)
-                                        btMicStatus.text = "麦克风开"
-                                        tvSinger.text = getString(R.string.app_co_singer)
-                                        KeyCenter.role = KTVSingRole.CoSinger
-                                    }
-                                }
+                            ktvApi.startScore(songCode) { _, state, _ ->
+                                if (state == MccExState.START_SCORE_STATE_COMPLETED) {
+                                    // 切换身份为合唱者
+                                    ktvApi.switchSingerRole(KTVSingRole.CoSinger, object : ISwitchRoleStateListener {
+                                        override fun onSwitchRoleSuccess() {
+                                            mainHandler.post {
+                                                toast("加入合唱成功，自动开麦")
+                                                ktvApi.muteMic(false)
+                                                btMicStatus.text = "麦克风开"
+                                                tvSinger.text = getString(R.string.app_co_singer)
+                                                KeyCenter.role = KTVSingRole.CoSinger
+                                                btJoinChorus.isActivated = true
+                                                btMicOn.isActivated = true
+                                                btMicOff.isActivated = false
+                                            }
+                                        }
 
-                                override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
-                                    mainHandler.post {
-                                        toast("加入合唱失败")
-                                    }
+                                        override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
+                                            mainHandler.post {
+                                                toast("加入合唱失败")
+                                                btJoinChorus.isActivated = false
+                                            }
+                                        }
+                                    })
                                 }
-                            })
+                            }
+
                         }
 
                         override fun onMusicLoadFail(songCode: Long, reason: KTVLoadMusicFailReason) {
@@ -197,6 +210,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                     tvSinger.text = getString(R.string.app_audience)
                     KeyCenter.role = KTVSingRole.Audience
                     toast("退出合唱成功")
+                    btJoinChorus.isActivated = false
                 }
             }
 
@@ -231,17 +245,18 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             btLoadMusic.setOnClickListener {
                 loadMusic()
                 btLoadMusic.isActivated = true
+                btRemoveMusic.isActivated = false
             }
 
             // 取消加载歌曲并删除本地歌曲缓存
-//            btRemoveMusic.setOnClickListener {
-//                if (KeyCenter.isMcc) {
-//                    ktvApi.removeMusic(KeyCenter.songCode)
-//                    lyricsView.reset()
-//                } else {
-//                    toast(getString(R.string.app_no_premission))
-//                }
-//            }
+            btRemoveMusic.setOnClickListener {
+                // 模拟移除
+                ktvApi.switchSingerRole(KTVSingRole.Audience, null)
+                btLoadMusic.isActivated = false
+                btRemoveMusic.isActivated = true
+                lyricsView.reset()
+                isLyricDataSet = false
+            }
 
             // 开麦
             btMicOn.setOnClickListener {
@@ -289,6 +304,10 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             }
         }
     }
+
+    // 防止歌词没设置，直接 set pitch
+    @Volatile
+    private var isLyricDataSet = false
 
     /*
      * 初始化 KTVAPI
@@ -355,8 +374,10 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 karaokeView?.setProgress(progress ?: 0L)
             }
 
-            override fun onUpdatePitch(songCode: Long, data: RawScoreData) {
-                karaokeView?.setPitch(data.speakerPitch, data.progressInMs)
+            override fun onUpdatePitch(songCode: Long, pitch: Double, progressInMs: Int) {
+                if (isLyricDataSet) {
+                    karaokeView?.setPitch(pitch.toFloat(), progressInMs)
+                }
             }
 
             override fun onLineScore(songCode: Long, value: LineScoreData) {
@@ -371,6 +392,7 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
                     mLyricsModel?.let { lyricModel ->
                         karaokeView?.setLyricData(lyricModel)
+                        isLyricDataSet = true
                     }
                 }
             }

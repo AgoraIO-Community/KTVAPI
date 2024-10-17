@@ -85,6 +85,7 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
 
     // 音高
     private var pitch = 0.0
+    private var progressInMs = 0
 
     // 是否在麦上
     private var isOnMicOpen = false
@@ -130,6 +131,7 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
                         mRtcEngine.sendAudioMetadata(lrcTime.toByteArray())
                     }
                     runOnMainThread {
+                        lrcView?.onUpdatePitch(songCode, pitch, progressInMs)
                         // (fix ENT-489)Make lyrics delay for 200ms
                         // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
                         // such as AEC/Player/Device buffer.
@@ -150,11 +152,11 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
                 (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger || singerRole == KTVSingRole.CoSinger) &&
                 isOnMicOpen
             ) {
-                sendSyncPitch(pitch)
+                sendSyncPitch(pitch, progressInMs)
             } else if (mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING &&
                 (singerRole == KTVSingRole.LeadSinger || singerRole == KTVSingRole.SoloSinger)
             ) {
-                sendSyncPitch(pitch)
+                sendSyncPitch(pitch, progressInMs)
             }
         }
     }
@@ -1050,10 +1052,11 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
     }
 
     // ------------------ 音高pitch同步 ------------------
-    private fun sendSyncPitch(pitch: Double) {
+    private fun sendSyncPitch(pitch: Double, progressInMs: Int) {
         val msg: MutableMap<String?, Any?> = java.util.HashMap()
         msg["cmd"] = "setVoicePitch"
         msg["pitch"] = pitch
+        msg["progressInMs"] = progressInMs
         val jsonMsg = JSONObject(msg)
         sendStreamMessageWithJsonObject(jsonMsg) {}
     }
@@ -1068,6 +1071,7 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
     private fun stopSyncPitch() {
         mStopSyncPitch = true
         pitch = 0.0
+        progressInMs = 0
 
         mSyncPitchFuture?.cancel(true)
         mSyncPitchFuture = null
@@ -1189,7 +1193,7 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
                 val songId = lrcTime.songId
                 val curTs = if (this.songIdentifier == songId) realPosition else 0
                 runOnMainThread {
-//                    lrcView?.onUpdatePitch(pitch.toFloat())
+                    lrcView?.onUpdatePitch(songCode, pitch, progressInMs)
                     // (fix ENT-489)Make lyrics delay for 200ms
                     // Per suggestion from Bob, it has a intrinsic buffer/delay between sound and `onPositionChanged(Player)`,
                     // such as AEC/Player/Device buffer.
@@ -1315,11 +1319,14 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
                 }
             } else if (jsonMsg.getString("cmd") == "setVoicePitch") {
                 val pitch = jsonMsg.getDouble("pitch")
+                val progressInMs = jsonMsg.getInt("progressInMs")
                 if (ktvApiConfig.type == KTVType.SingRelay && !isOnMicOpen && this.singerRole != KTVSingRole.Audience) {
                     this.pitch = pitch
+                    this.progressInMs = progressInMs
                 }
                 if (this.singerRole == KTVSingRole.Audience) {
                     this.pitch = pitch
+                    this.progressInMs = progressInMs
                 }
             } else if (jsonMsg.getString("cmd") == "syncNewLeadSinger") {
                 if (singerRole == KTVSingRole.CoSinger) {
@@ -1339,18 +1346,19 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
         if (this.ktvApiConfig.type == KTVType.SingRelay && !isOnMicOpen) {
             return
         }
-        if (this.singerRole != KTVSingRole.Audience) {
-            for (info in allSpeakers) {
-                if (info.uid == 0) {
-                    pitch =
-                        if (this.mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING && isOnMicOpen) {
-                            info.voicePitch
-                        } else {
-                            0.0
-                        }
-                }
-            }
-        }
+        // TODO:  2024/10/17 音高 maccEx 回调
+//        if (this.singerRole != KTVSingRole.Audience) {
+//            for (info in allSpeakers) {
+//                if (info.uid == 0) {
+//                    pitch =
+//                        if (this.mediaPlayerState == MediaPlayerState.PLAYER_STATE_PLAYING && isOnMicOpen) {
+//                            info.voicePitch
+//                        } else {
+//                            0.0
+//                        }
+//                }
+//            }
+//        }
     }
 
     // 用于合唱校准
@@ -1386,7 +1394,8 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
 
     // ------------------------ IMusicContentCenterExEventHandler  ------------------------
     override fun onInitializeResult(state: MccExState, reason: MccExStateReason) {
-        ktvApiLog("onInitializeResult, state:$state, reason:$reason"
+        ktvApiLog(
+            "onInitializeResult, state:$state, reason:$reason"
         )
     }
 
@@ -1479,9 +1488,13 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
 
 
     override fun onPitch(songCode: Long, data: RawScoreData) {
-        runOnMainThread {
-            lrcView?.onUpdatePitch(songCode, data)
+        if (this.singerRole != KTVSingRole.Audience) {
+            this.pitch = data.speakerPitch.toDouble()
+            this.progressInMs = data.progressInMs
         }
+//        runOnMainThread {
+//            lrcView?.onUpdatePitch(songCode, data)
+//        }
     }
 
     // ------------------------ AgoraRtcMediaPlayerDelegate ------------------------
@@ -1546,6 +1559,7 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
             msg["realTime"] = position_ms
             msg["playerState"] = MediaPlayerState.getValue(this.mediaPlayerState)
             msg["pitch"] = pitch
+            msg["progressInMs"] = progressInMs
             msg["songIdentifier"] = songIdentifier
             msg["ver"] = lyricSyncVersion
             val jsonMsg = JSONObject(msg)

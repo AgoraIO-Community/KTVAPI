@@ -57,7 +57,9 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
             groupSongType.setOnCheckedChangeListener { _, checkedId -> KeyCenter.isMcc = checkedId == R.id.rbtMccSong }
 
             // 选择体验 KTVApi 的类型， 普通合唱或者大合唱
-            ktvApiType.setOnCheckedChangeListener { _, checkedId -> KeyCenter.isNormalChorus = checkedId == R.id.rbtNormalChorus}
+            ktvApiType.setOnCheckedChangeListener { _, checkedId ->
+                KeyCenter.isNormalChorus = checkedId == R.id.rbtNormalChorus
+            }
 
             // 开始体验按钮
             btnStartChorus.setOnClickListener {
@@ -69,7 +71,7 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
 //                    toast(getString(R.string.app_restful_check))
 //                    return@setOnClickListener
 //                }
-                if (KeyCenter.channelId.isEmpty()){
+                if (KeyCenter.channelId.isEmpty()) {
                     toast(getString(R.string.app_input_channel_name))
                     return@setOnClickListener
                 }
@@ -145,11 +147,9 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
 
     private fun setRoleView() {
         binding?.apply {
-            if (KeyCenter.role == KTVSingRole.LeadSinger) {
-                btnLeadSinger.isActivated = true
-            } else {
-                btnAudience.isActivated = true
-            }
+            btnLeadSinger.isActivated =
+                KeyCenter.role == KTVSingRole.LeadSinger || KeyCenter.role == KTVSingRole.SoloSinger
+            btnAudience.isActivated = KeyCenter.role == KTVSingRole.Audience
         }
     }
 }

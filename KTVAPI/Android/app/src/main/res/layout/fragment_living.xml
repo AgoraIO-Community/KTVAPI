@@ -68,6 +68,16 @@
         app:layout_constraintTop_toTopOf="@id/btnClose"
         tools:text="主唱" />
 
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/tvChorusScene"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/black_333"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@+id/tvSinger"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="独唱、小合唱 Channel:666" />
     <androidx.appcompat.widget.AppCompatImageButton
         android:id="@+id/btnClose"
         android:layout_width="wrap_content"

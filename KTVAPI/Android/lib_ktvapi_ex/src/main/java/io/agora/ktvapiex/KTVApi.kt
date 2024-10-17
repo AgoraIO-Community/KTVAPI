@@ -155,9 +155,10 @@ interface ILrcView {
     /**
      * ktvApi内部更新音高pitch时会主动调用此方法将pitch值传给你的歌词组件
      * @param songCode 歌曲编码，和loadMusic传入的songCode一致
-     * @param data 歌词数据
+     * @param pitch 音高
+     * @param progressInMs 歌曲播放的进度
      */
-    fun onUpdatePitch(songCode: Long, data: RawScoreData)
+    fun onUpdatePitch(songCode: Long, pitch: Double, progressInMs: Int)
 
     fun onLineScore(songCode: Long, value: LineScoreData)
 
