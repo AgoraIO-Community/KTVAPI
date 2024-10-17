@@ -5,7 +5,7 @@ apply plugin: 'maven-publish'
 //apply plugin: 'com.google.protobuf'
 
 android {
-    namespace 'io.agora.ktv'
+    namespace 'io.agora.ktvex'
     compileSdk 33
 
     defaultConfig {

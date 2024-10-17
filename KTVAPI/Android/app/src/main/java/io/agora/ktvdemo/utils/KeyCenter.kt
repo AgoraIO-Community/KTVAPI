@@ -1,7 +1,5 @@
 package io.agora.ktvdemo.utils
 
-import io.agora.ktvapiex.KTVSingRole
-
 object KeyCenter {
 
     /*
@@ -9,8 +7,8 @@ object KeyCenter {
      */
     const val LeadSingerUid = 2024
 
-    const val songCode: Long = 40289835
-    const val songCode2: Long = 89488966
+    val songCode: Long  get() = if (isMccEx) 40289835 else 6625526605291650
+    val songCode2: Long get() = if (isMccEx) 89488966 else 6654550265524810
 
     /*
      * 加入的频道名
@@ -35,8 +33,10 @@ object KeyCenter {
     /*
      * 当前演唱中的身份
      */
-    var role: KTVSingRole = KTVSingRole.LeadSinger
+    var isBroadcaster: Boolean = false
 
-    fun isLeadSinger(): Boolean = localUid == LeadSingerUid
-    fun isAudience(): Boolean = localUid != LeadSingerUid && role != KTVSingRole.CoSinger
+    /**
+     * 是否是 MCC EX
+     */
+    var isMccEx: Boolean = false
 }

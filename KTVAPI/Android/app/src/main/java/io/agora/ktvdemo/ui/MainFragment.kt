@@ -4,10 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.navigation.fragment.findNavController
-import io.agora.ktvapiex.KTVSingRole
+import io.agora.ktvapi.KTVSingRole
 import io.agora.ktvdemo.BuildConfig
 import io.agora.ktvdemo.rtc.IChannelEventListener
 import io.agora.ktvdemo.R
@@ -30,6 +29,11 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
         super.onViewCreated(view, savedInstanceState)
         binding?.apply {
             resetRoleView()
+            if (KeyCenter.isBroadcaster){
+                KeyCenter.localUid = KeyCenter.LeadSingerUid
+            }else{
+                KeyCenter.localUid = Random(System.currentTimeMillis()).nextInt(100000) + 1000000
+            }
             setRoleView()
 
             // 频道名输入框，开始体验前需要输入一个频道名
@@ -40,7 +44,7 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
             // 初始角色选择主唱，一个体验频道只能有一个主唱
             btnLeadSinger.setOnClickListener {
                 resetRoleView()
-                KeyCenter.role = KTVSingRole.LeadSinger
+                KeyCenter.isBroadcaster = true
                 KeyCenter.localUid = KeyCenter.LeadSingerUid
                 setRoleView()
             }
@@ -48,17 +52,38 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
             // 初始角色选择观众，一个体验频道可以有多个观众
             btnAudience.setOnClickListener {
                 resetRoleView()
-                KeyCenter.role = KTVSingRole.Audience
+                KeyCenter.isBroadcaster = false
                 KeyCenter.localUid = Random(System.currentTimeMillis()).nextInt(100000) + 1000000
                 setRoleView()
             }
 
+            // TODO: 暂时是两首不同的 songCode
             // 选择加载歌曲的类型， MCC 声网歌曲中心或者本地歌曲
+            if (KeyCenter.isMcc){
+                groupSongType.check(R.id.rbtMccSong)
+            }else{
+                groupSongType.check(R.id.rbtLocalSong)
+            }
             groupSongType.setOnCheckedChangeListener { _, checkedId -> KeyCenter.isMcc = checkedId == R.id.rbtMccSong }
 
-            // 选择体验 KTVApi 的类型， 普通合唱或者大合唱
-            ktvApiType.setOnCheckedChangeListener { _, checkedId ->
+            // 选择体验合唱场景， 普通合唱或者大合唱
+            if (KeyCenter.isNormalChorus){
+                chorusScene.check(R.id.rbtNormalChorus)
+            }else{
+                chorusScene.check(R.id.rbtGiantChorus)
+            }
+            chorusScene.setOnCheckedChangeListener { _, checkedId ->
                 KeyCenter.isNormalChorus = checkedId == R.id.rbtNormalChorus
+            }
+
+            // 选择体验 KTVApi macc or maccEx， 歌曲中心来源不同，歌词组件不同
+            if (KeyCenter.isMccEx){
+                mccType.check(R.id.rbtMccEx)
+            }else{
+                mccType.check(R.id.rbtMcc)
+            }
+            mccType.setOnCheckedChangeListener { _, checkedId ->
+                KeyCenter.isMccEx = checkedId == R.id.rbtMccEx
             }
 
             // 开始体验按钮
@@ -67,10 +92,10 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                     toast(getString(R.string.app_appid_check))
                     return@setOnClickListener
                 }
-//                if (!KeyCenter.isNormalChorus && BuildConfig.RESTFUL_API_KEY.isEmpty()) {
-//                    toast(getString(R.string.app_restful_check))
-//                    return@setOnClickListener
-//                }
+                if (!KeyCenter.isNormalChorus && BuildConfig.RESTFUL_API_KEY.isEmpty()) {
+                    toast(getString(R.string.app_restful_check))
+                    return@setOnClickListener
+                }
                 if (KeyCenter.channelId.isEmpty()) {
                     toast(getString(R.string.app_input_channel_name))
                     return@setOnClickListener
@@ -99,7 +124,11 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                                     RtcEngineController.audienceChannelToken = rtcToken
                                     RtcEngineController.rtmToken = rtmToken
                                     RtcEngineController.chorusChannelRtcToken = chorusToken
-                                    findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
+                                    if (KeyCenter.isMccEx){
+                                        findNavController().navigate(R.id.action_mainFragment_to_livingFragmentEx)
+                                    }else{
+                                        findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
+                                    }
                                 },
                                 failure = {
                                     toast("获取 token 异常1")
@@ -116,7 +145,11 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                                             RtcEngineController.rtmToken = rtmToken
                                             RtcEngineController.audienceChannelToken = audienceToken
                                             RtcEngineController.musicStreamToken = musicToken
-                                            findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
+                                            if (KeyCenter.isMccEx){
+                                                findNavController().navigate(R.id.action_mainFragment_to_livingFragmentEx)
+                                            }else{
+                                                findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
+                                            }
                                         },
                                         failure = {
                                             toast("获取 token 异常2")
@@ -147,9 +180,8 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
 
     private fun setRoleView() {
         binding?.apply {
-            btnLeadSinger.isActivated =
-                KeyCenter.role == KTVSingRole.LeadSinger || KeyCenter.role == KTVSingRole.SoloSinger
-            btnAudience.isActivated = KeyCenter.role == KTVSingRole.Audience
+            btnLeadSinger.isActivated = KeyCenter.isBroadcaster
+            btnAudience.isActivated =  !KeyCenter.isBroadcaster
         }
     }
 }
