@@ -1,4 +1,4 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.zego;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -8,6 +8,7 @@ import android.util.Log;
 
 import cn.soulapp.android.lib.media.Const;
 import cn.soulapp.android.lib.media.zego.beans.StreamMessage;
+import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVSyncProcess;
 import io.agora.mediaplayer.Constants;
 import io.agora.mediaplayer.IMediaPlayer;
 import io.agora.rtc2.RtcEngineEx;

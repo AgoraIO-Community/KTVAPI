@@ -1,4 +1,4 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.zego;
 
 import android.app.Application;
 import android.content.Context;
@@ -13,11 +13,6 @@ import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
 
-import com.zego.chatroom.manager.entity.ResultCode;
-import com.zego.chatroom.manager.room.ZegoLoginRoomCallback;
-import com.zego.chatroom.manager.room.ZegoRoomLoginEvent;
-import com.zego.zegoavkit2.audioplayer.IZegoAudioPlayerCallback;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -29,6 +24,7 @@ import cn.soul.insight.log.core.SLogKt;
 import cn.soulapp.android.lib.analyticsV2.SoulAnalyticsV2;
 import cn.soulapp.android.lib.media.Const;
 import cn.soulapp.android.lib.media.IAudioPlayerCallBack;
+import cn.soulapp.android.lib.media.ResultCode;
 import cn.soulapp.android.lib.media.SLMediaPlayerState;
 import cn.soulapp.android.lib.media.agroa.AgroaEngineConfig;
 import cn.soulapp.android.lib.media.agroa.BuildConfig;
@@ -36,14 +32,12 @@ import cn.soulapp.android.lib.media.agroa.RtcEngineHandler;
 import cn.soulapp.android.lib.media.agroa.SAaoraInstance;
 import cn.soulapp.android.lib.media.rtc.SoulRtcEngine;
 import cn.soulapp.android.lib.media.volcengine.GameParams;
-import cn.soulapp.android.lib.media.zego.MediaPlayerCustomDataProvider;
-import cn.soulapp.android.lib.media.zego.SLExternalVideoSourceType;
-import cn.soulapp.android.lib.media.zego.SVideoDimension;
-import cn.soulapp.android.lib.media.zego.SoulRTCSimulcastStreamModel;
 import cn.soulapp.android.lib.media.zego.beans.AudioRecordingParams;
 import cn.soulapp.android.lib.media.zego.beans.PlayKTVParams;
 import cn.soulapp.android.lib.media.zego.beans.RemoteViewParams;
 import cn.soulapp.android.lib.media.zego.beans.StreamMessage;
+import cn.soulapp.android.lib.media.zego.beans.ZegoRoomLoginEvent;
+import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVChorusHelper;
 import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVSyncProcess;
 import cn.soulapp.android.lib.media.zego.interfaces.IAudioRecordCallBack;
 import cn.soulapp.android.lib.media.zego.interfaces.IChatRoomEngine;
@@ -56,6 +50,8 @@ import cn.soulapp.android.lib.media.zego.interfaces.IRoomCallback;
 import cn.soulapp.android.lib.media.zego.interfaces.IRoomLiveStatusCallback;
 import cn.soulapp.android.lib.media.zego.interfaces.IUserIdDES;
 import cn.soulapp.android.lib.media.zego.interfaces.IVideoStateCallBack;
+import cn.soulapp.android.lib.media.zego.interfaces.IZegoAudioPlayerCallback;
+import cn.soulapp.android.lib.media.zego.interfaces.ZegoLoginRoomCallback;
 import cn.soulapp.android.lib.media.zego.utils.GsonUtils;
 import io.agora.base.TextureBuffer;
 import io.agora.base.TextureBufferHelper;
@@ -179,7 +175,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     private int audioDelay;
     private String chatType = SoulRtcEngine.Type.TYPE_BROADCAST;
     private IAgoraKTVSyncProcess syncProcessHelper;//KTV合唱同步
-    private AgoraKTVChorusHelper ktvChorusHelper;//KTV合唱帮助类
+    private IAgoraKTVChorusHelper ktvChorusHelper;//KTV合唱帮助类
+    private AgoraOldKTVChorusHelper ktvOldChorusHelper;//KTV合唱帮助类
     private int playerRole;
     private int playbackVolume = 100;
     private int recordingSignalVolume = 100;
@@ -188,6 +185,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     private String appID;
     private boolean isDelayLocalSendPosition = true;
     private long audioDuration = 0;//
+    private boolean isKtvMode = false;
 
     private AgoraMediaRecorder agoraMediaRecorder = null;
 
@@ -200,6 +198,14 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     private boolean isMultiRoom;
 
     private boolean isFollowSing; //当前是否为跟唱模式
+    private boolean isUserNewLayer;
+
+    public AgoraChatRoomEngine() {
+        /**
+         * 是否使用新的封装层
+         */
+        isUserNewLayer = SConfiger.getBoolean("party_agora_new_layer", true);
+    }
 
     @Override
     public void initEngine(boolean isMultiRoom, Application context, String soPath, final String userId, String userName, String appID, byte[] appSign, boolean isTestEnv) {
@@ -327,10 +333,19 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             @Override
             public void onTokenPrivilegeWillExpire(String token) {
                 super.onTokenPrivilegeWillExpire(token);
-                AgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
-                if (token!=null && ktvChorusHelper != null && token.equals(ktvChorusHelper.getChorusToken())){
-                    //合唱流token过期，直接不处理
-                    return;
+                // TODO AgoraKTVChorusHelper 适配
+                if (isUserNewLayer) {
+                    IAgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
+                    if (token != null && ktvChorusHelper != null && token.equals(ktvChorusHelper.getChorusToken())) {
+                        //合唱流token过期，直接不处理
+                        return;
+                    }
+                } else {
+                    AgoraOldKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvOldChorusHelper;
+                    if (token != null && ktvChorusHelper != null && token.equals(ktvChorusHelper.getChorusToken())) {
+                        //合唱流token过期，直接不处理
+                        return;
+                    }
                 }
                 IRoomCallback iRoomCallback = AgoraChatRoomEngine.this.iRoomCallback;
                 if (iRoomCallback != null) {
@@ -359,10 +374,18 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                         if (message != null) {
                             boolean isHandle = false;
                             try {
-                                //多线程NPE避免
-                                IAgoraKTVSyncProcess syncProcessHelper = AgoraChatRoomEngine.this.syncProcessHelper;
-                                if (syncProcessHelper != null) {
-                                    isHandle = syncProcessHelper.onStreamMessage(uid, streamId, message);
+                                // TODO AgoraKTVChorusHelper 适配
+                                if (isUserNewLayer) {
+                                    //多线程NPE避免
+                                    IAgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
+                                    if (ktvChorusHelper != null) {
+                                        isHandle = ktvChorusHelper.onStreamMessage(uid, streamId, message);
+                                    }
+                                } else {
+                                    IAgoraKTVSyncProcess syncProcessHelper = AgoraChatRoomEngine.this.syncProcessHelper;
+                                    if (syncProcessHelper != null) {
+                                        isHandle = syncProcessHelper.onStreamMessage(uid, streamId, message);
+                                    }
                                 }
                             } catch (Throwable e) {
                                 SLogKt.SLogApi.e(TAG, "syncProcessHelper onStreamMessage error:" + e.getMessage());
@@ -421,11 +444,19 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             public void onLocalAudioStats(IRtcEngineEventHandler.LocalAudioStats stats) {
                 super.onLocalAudioStats(stats);
                 audioDelay = stats.audioPlayoutDelay;
-                IAgoraKTVSyncProcess syncProcessHelper = AgoraChatRoomEngine.this.syncProcessHelper;
-                if (syncProcessHelper != null){
-                    syncProcessHelper.setAudioDelay(audioDelay);
+                // TODO AgoraKTVCourseHelper 适配
+                if (isUserNewLayer) {
+                    IAgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
+                    if (ktvChorusHelper != null) {
+                        ktvChorusHelper.setAudioDelay(audioDelay);
+                    }
+                } else {
+                    IAgoraKTVSyncProcess syncProcessHelper = AgoraChatRoomEngine.this.syncProcessHelper;
+                    if (syncProcessHelper != null) {
+                        syncProcessHelper.setAudioDelay(audioDelay);
+                    }
+                    SLogKt.SLogApi.d("RoomChatEngineAgora", "audioPlayoutDelay=" + audioDelay);
                 }
-                SLogKt.SLogApi.d("RoomChatEngineAgora", "audioPlayoutDelay="+audioDelay);
             }
 
             @Override
@@ -578,7 +609,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (initCallback != null) {
             initCallback.onEngineInit();
         }
-        RtcEngine rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
         SLogKt.SLogApi.e("RoomChatEngineAgora", "SAaoraInstance.getInstance().rtcEngine() rtcEngine = " + rtcEngine);
         if (rtcEngine == null) return;
         if (isMultiRoom){
@@ -590,14 +621,27 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         rtcEngine.registerAudioFrameObserver(new IAudioFrameObserver() {
             @Override
             public boolean onRecordAudioFrame(String channelId, int type, int samplesPerChannel, int bytesPerSample, int channels, int samplesPerSec, ByteBuffer buffer, long renderTimeMs, int avsync_type) {
-                AgoraKTVChorusHelper tempKtvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
-                //多线程可能导致NPE
-                if (tempKtvChorusHelper != null) {
-                    tempKtvChorusHelper.onRecordAudioFrame(buffer, renderTimeMs);
-                }
-                IAudioPlayerCallBack audioPlayerCallBack = AgoraChatRoomEngine.this.audioPlayerCallBack;
-                if (null != audioPlayerCallBack) {
-                    audioPlayerCallBack.onAudioPrep(buffer, samplesPerSec);
+                // TODO AgoraKTVChorusHelper 适配
+                if (isUserNewLayer) {
+                    IAgoraKTVChorusHelper tempKtvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
+                    //多线程可能导致NPE
+                    if (tempKtvChorusHelper != null) {
+                        tempKtvChorusHelper.onRecordAudioFrame(buffer, renderTimeMs);
+                    }
+                    IAudioPlayerCallBack audioPlayerCallBack = AgoraChatRoomEngine.this.audioPlayerCallBack;
+                    if (null != audioPlayerCallBack) {
+                        audioPlayerCallBack.onAudioPrep(buffer, samplesPerSec);
+                    }
+                } else {
+                    AgoraOldKTVChorusHelper tempKtvChorusHelper = AgoraChatRoomEngine.this.ktvOldChorusHelper;
+                    //多线程可能导致NPE
+                    if (tempKtvChorusHelper != null) {
+                        tempKtvChorusHelper.onRecordAudioFrame(buffer, renderTimeMs);
+                    }
+                    IAudioPlayerCallBack audioPlayerCallBack = AgoraChatRoomEngine.this.audioPlayerCallBack;
+                    if (null != audioPlayerCallBack) {
+                        audioPlayerCallBack.onAudioPrep(buffer, samplesPerSec);
+                    }
                 }
                 return true;
             }
@@ -675,8 +719,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 //            rtcEngine.setParameters("{\"rtc.debug.enable\":true}");
 //            rtcEngine.setParameters("{\"che.audio.frame_dump\":{\"location\":\"all\",\"action\":\"start\",\"max_size_bytes\":\"120000000\",\"uuid\":\"123456789\",\"duration\":\"1200000\"}}");
 //        }
-
-
+        if (isUserNewLayer) {
+            this.ktvChorusHelper = new AgoraKTVChorusHelper(rtcEngine);
+        }
     }
 
     @Override
@@ -800,7 +845,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
         Map<String, Object> map = new HashMap<>();
         track("RTC_Local_User_Left", map);
-
+        isKtvMode = false;
         isLogin = false;
         haveAdjustVolum = false;
         ktvAudioPreset = AUDIO_EFFECT_OFF;
@@ -821,16 +866,31 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             this.audioMediaPlayer = null;
             audioDuration = 0;
         }
-        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
-        if (syncProcessHelper != null) {
-            syncProcessHelper.stop();
-            this.syncProcessHelper = null;
+        // TODO AgoraKTVChorusHelper 适配
+        if (isUserNewLayer) {
+            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
+            if (ktvChorusHelper != null) {
+                ktvChorusHelper.switchSingerRole(Const.KTV_ROLE_AUDIENCE);
+                ktvChorusHelper.release();
+                this.ktvChorusHelper = null;
+            }
+        } else {
+            IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+            if (syncProcessHelper != null) {
+                syncProcessHelper.stop();
+                this.syncProcessHelper = null;
+            }
+            AgoraOldKTVChorusHelper ktvChorusHelper = this.ktvOldChorusHelper;
+            if (ktvChorusHelper != null) {
+                ktvChorusHelper.stopPlay();
+                this.ktvOldChorusHelper = null;
+            }
         }
-        AgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-        if (ktvChorusHelper != null) {
-            ktvChorusHelper.stopPlay();
-            this.ktvChorusHelper = null;
-        }
+//        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+//        if (syncProcessHelper != null) {
+//            syncProcessHelper.stop();
+//            this.syncProcessHelper = null;
+//        }
         SAaoraInstance.getInstance().leaveChannel(null);
         SLogKt.SLogApi.e("RoomChatEngineAgora", "leaveRoom leaveChannel");
         SAaoraInstance.getInstance().deInitWorkerThread();
@@ -883,9 +943,17 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
         rtcEngineEx.muteRecordingSignal(!enable);
 
-        AgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-        if (ktvChorusHelper != null) {
-            ktvChorusHelper.enableMic(enable);
+        // TODO AgoraKTVChorusHelper 适配
+        if (isUserNewLayer) {
+            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
+            if (ktvChorusHelper != null) {
+                ktvChorusHelper.enableMic(enable);
+            }
+        } else {
+            AgoraOldKTVChorusHelper ktvChorusHelper = this.ktvOldChorusHelper;
+            if (ktvChorusHelper != null) {
+                ktvChorusHelper.enableMic(enable);
+            }
         }
     }
 
@@ -1084,6 +1152,22 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
         Map<String, Object> map = new HashMap<>();
         map.put("filePath",url);
+        map.put("loopCount", loopCount + "");
+        track("RTC_Play_Music", map);
+    }
+
+    @Override
+    public void playMusicForGame(IMusicPlayCallback callBack, String url, int loopCount) {
+        this.iMusicPlayCallback = callBack;
+        RtcEngineEx engineEx = SAaoraInstance.getInstance().rtcEngine();
+        if (engineEx == null) {
+            SLogKt.SLogApi.e(TAG, "playMusic rtcEngine==null url=" + url + ", loopCount=" + loopCount);
+            return;
+        }
+        engineEx.startAudioMixing(url, false, loopCount, 1);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("filePath", url);
         map.put("loopCount",loopCount+"");
         track("RTC_Play_Music", map);
     }
@@ -1293,6 +1377,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void addRoomCallBack(IRoomCallback iRoomCallback) {
         this.iRoomCallback = iRoomCallback;
+        if (isUserNewLayer && this.ktvChorusHelper != null) {
+            ktvChorusHelper.setRoomCallBack(iRoomCallback);
+        }
     }
 
     @Override
@@ -1597,6 +1684,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void playAudio(String url, String audioUniId) {
+        isKtvMode = false;
         this.audioUniId = audioUniId;
         currentAudioPosition = 0;
         videoUrl = null;
@@ -1629,6 +1717,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void playEncryptAudio(String url, IMediaPlayerDecryptBlock fileReader) {
+        isKtvMode = false;
         isAccompanyDelayPositionChange = SConfiger.getBoolean("accompany_delay_position_change" ,false);
         customDataProvider = new MediaPlayerCustomDataProvider();
         videoUrl = null;
@@ -1665,78 +1754,88 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void playKTVEncryptAudio(PlayKTVParams params) {
-        String url = params.url;
-        int role = params.role;
-        isAccompanyDelayPositionChange = SConfiger.getBoolean("accompany_delay_position_change" ,false);
-        this.audioUniId = params.audioUniId;
-        isDelayLocalSendPosition = true;
-        playerRole = role;
-        videoUrl = null;
-        initAudioMediaPlayer();
-        if (!haveAdjustVolum) {
-            setLocalVolume(100);
-            if (role == Const.KTV_ROLE_ACCOMPANY_SINGER) {
-                //伴唱
-                audioMediaPlayer.adjustPlayoutVolume(25);
-            } else {
-                setVideoVolume(50);
+        // TODO AgoraKTVChorusHelper 适配, 另外可以清理下面的代码, 移除实时合唱的逻辑
+        isKtvMode = true;
+        if (isUserNewLayer) {
+            isAccompanyDelayPositionChange = SConfiger.getBoolean("accompany_delay_position_change" ,false);
+            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
+            if (ktvChorusHelper != null) {
+                ktvChorusHelper.playKTVEncryptAudio(params, isAccompanyDelayPositionChange);
             }
-        }
-
-        audioDuration = 0;
-        boolean changeSource =
-                !url.equals(audioUrl);
-        if (audioMediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING && changeSource) {
-            audioMediaPlayer.stop();
-        }
-        audioUrl = url;
-        if (params.playType == Const.KtvAudioPlayType.playTypeEncryption) {
-            customDataProvider = new MediaPlayerCustomDataProvider();
-            customDataProvider.setUrl(url);
-            customDataProvider.setMediaPlayerFileReader(params.fileReader);
-        }
-
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
-        if (rtcEngine == null){
-            SLogKt.SLogApi.e(TAG, "playKTVEncryptAudio rtcEngine==null");
-            return;
-        }
-        AgroaEngineConfig config = SAaoraInstance.getInstance().getConfig();
-
-        AgoraKTVConfig ktvConfig = new AgoraKTVConfig();
-        ktvConfig.role = role;
-        ktvConfig.rtcEngine = rtcEngine;
-        ktvConfig.mediaPlayer = audioMediaPlayer;
-        ktvConfig.agroaEngineConfig = config;
-        ktvConfig.chorusToken = params.chorusToken;
-        ktvConfig.chorusChannelId = params.chorusChannelId;
-        ktvConfig.leaderUid = Integer.parseInt(params.curSingerUid);
-        ktvConfig.syncSteamId = syncSteamId;
-        ktvConfig.playbackSignalVolume = params.playbackSignalVolume;
-
-        if (ktvChorusHelper != null) {
-            ktvChorusHelper.stopPlay();
-        }
-
-        ktvChorusHelper = new AgoraKTVChorusHelper(ktvConfig);
-        ktvChorusHelper.enableMic(enableMic);
-        ktvChorusHelper.startPlay();
-
-        if (syncProcessHelper != null) {
-            syncProcessHelper.stop();
-        }
-//        syncProcessHelper = new AgoraKTVSyncProcessHelper(ktvConfig);
-        syncProcessHelper = new AgoraKTVSyncProcessNTPHelper(ktvConfig);
-        if (role == Const.KTV_ROLE_ACCOMPANY_SINGER) {
-            syncProcessHelper.startSyncProcess();
-        }
-
-        if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING || changeSource) {
-            if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PAUSED) {
-                if (params.playType == Const.KtvAudioPlayType.playTypeEncryption) {
-                    audioMediaPlayer.openWithCustomSource(0, customDataProvider);
+        } else {
+            String url = params.url;
+            int role = params.role;
+            isAccompanyDelayPositionChange = SConfiger.getBoolean("accompany_delay_position_change" ,false);
+            this.audioUniId = params.audioUniId;
+            isDelayLocalSendPosition = true;
+            playerRole = role;
+            videoUrl = null;
+            initAudioMediaPlayer();
+            if (!haveAdjustVolum) {
+                setLocalVolume(100);
+                if (role == Const.KTV_ROLE_ACCOMPANY_SINGER) {
+                    //伴唱
+                    audioMediaPlayer.adjustPlayoutVolume(25);
                 } else {
-                    audioMediaPlayer.open(url, 0);
+                    setVideoVolume(50);
+                }
+            }
+
+            audioDuration = 0;
+            boolean changeSource =
+                    !url.equals(audioUrl);
+            if (audioMediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING && changeSource) {
+                audioMediaPlayer.stop();
+            }
+            audioUrl = url;
+            if (params.playType == Const.KtvAudioPlayType.playTypeEncryption) {
+                customDataProvider = new MediaPlayerCustomDataProvider();
+                customDataProvider.setUrl(url);
+                customDataProvider.setMediaPlayerFileReader(params.fileReader);
+            }
+
+            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            if (rtcEngine == null){
+                SLogKt.SLogApi.e(TAG, "playKTVEncryptAudio rtcEngine==null");
+                return;
+            }
+            AgroaEngineConfig config = SAaoraInstance.getInstance().getConfig();
+
+            AgoraKTVConfig ktvConfig = new AgoraKTVConfig();
+            ktvConfig.role = role;
+            ktvConfig.rtcEngine = rtcEngine;
+            ktvConfig.mediaPlayer = audioMediaPlayer;
+            ktvConfig.agroaEngineConfig = config;
+            ktvConfig.chorusToken = params.chorusToken;
+            ktvConfig.chorusChannelId = params.chorusChannelId;
+            ktvConfig.leaderUid = Integer.parseInt(params.curSingerUid);
+            ktvConfig.syncSteamId = syncSteamId;
+            ktvConfig.playbackSignalVolume = params.playbackSignalVolume;
+
+            if (ktvOldChorusHelper != null) {
+                ktvOldChorusHelper.stopPlay();
+            }
+
+            ktvOldChorusHelper = new AgoraOldKTVChorusHelper(ktvConfig);
+            ktvOldChorusHelper.enableMic(enableMic);
+            ktvOldChorusHelper.startPlay();
+
+            if (syncProcessHelper != null) {
+                syncProcessHelper.stop();
+            }
+//        syncProcessHelper = new AgoraKTVSyncProcessHelper(ktvConfig);
+            syncProcessHelper = new AgoraKTVSyncProcessNTPHelper(ktvConfig);
+            if (role == Const.KTV_ROLE_ACCOMPANY_SINGER) {
+                syncProcessHelper.startSyncProcess();
+            }
+
+            if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING || changeSource) {
+                if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PAUSED) {
+                    if (params.playType == Const.KtvAudioPlayType.playTypeEncryption) {
+                        audioMediaPlayer.openWithCustomSource(0, customDataProvider);
+                    } else {
+                        audioMediaPlayer.open(url, 0);
+                    }
                 }
             }
         }
@@ -1828,25 +1927,45 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void stopAudio() {
-        resetAudioState();
-        if (audioMediaPlayer != null) {
-            audioMediaPlayer.stop();
-            audioDuration = 0;
-            ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
-            if (options == null) return;
-            options.publishMediaPlayerAudioTrack = false;
-            options.publishMediaPlayerVideoTrack = false;
-//            ktvAudioPreset = AUDIO_EFFECT_OFF;
-            SAaoraInstance.getInstance().updateOption(options);
-        }
+        // TODO AgoraKTVChorusHelper 适配, 另外可以清理下面的代码, 移除实时合唱的逻辑
+        isKtvMode = false;
+        if (isUserNewLayer) {
+            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
+            if (ktvChorusHelper != null) {
+                ktvChorusHelper.stopAudio();
+            }
 
-        if (syncProcessHelper != null) {
-            syncProcessHelper.stop();
-            syncProcessHelper = null;
-        }
-        if (ktvChorusHelper != null) {
-            ktvChorusHelper.stopPlay();
-            ktvChorusHelper = null;
+            resetAudioState();
+            if (audioMediaPlayer != null) {
+                audioMediaPlayer.stop();
+                audioDuration = 0;
+                ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+                if (options == null) return;
+                options.publishMediaPlayerAudioTrack = false;
+                options.publishMediaPlayerVideoTrack = false;
+                SAaoraInstance.getInstance().updateOption(options);
+            }
+        } else {
+            resetAudioState();
+            if (audioMediaPlayer != null) {
+                audioMediaPlayer.stop();
+                audioDuration = 0;
+                ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+                if (options == null) return;
+                options.publishMediaPlayerAudioTrack = false;
+                options.publishMediaPlayerVideoTrack = false;
+//            ktvAudioPreset = AUDIO_EFFECT_OFF;
+                SAaoraInstance.getInstance().updateOption(options);
+            }
+
+            if (syncProcessHelper != null) {
+                syncProcessHelper.stop();
+                syncProcessHelper = null;
+            }
+            if (ktvOldChorusHelper != null) {
+                ktvOldChorusHelper.stopPlay();
+                ktvOldChorusHelper = null;
+            }
         }
     }
 
@@ -1874,6 +1993,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (audioMediaPlayer != null) {
             audioMediaPlayer.pause();
         }
+        if (isUserNewLayer && null != ktvChorusHelper) {
+            ktvChorusHelper.pauseAudio();
+        }
     }
 
     @Override
@@ -1894,6 +2016,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     public void resumeAudio() {
         if (audioMediaPlayer != null) {
             audioMediaPlayer.resume();
+        }
+        if (isUserNewLayer && null != ktvChorusHelper) {
+            ktvChorusHelper.resumeAudio();
         }
     }
 
@@ -1962,8 +2087,13 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         return mediaPlayer != null && mediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING;
     }
 
+
+    //TODO ktv封装层有同样的方法，需要判断是ktv下面用里面的方法判断
     @Override
     public boolean isAudioPlaying() {
+        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
+            return ktvChorusHelper.isAudioPlaying();
+        }
         return audioMediaPlayer != null && audioMediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING;
     }
 
@@ -1988,6 +2118,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             audioMediaPlayer.adjustPlayoutVolume(volume);//本地播放的音量
             audioMediaPlayer.adjustPublishSignalVolume(volume / 2);//发到远端的音量
         }
+        if (isUserNewLayer && ktvChorusHelper != null) {
+            ktvChorusHelper.setVideoVolume(volume);
+        }
     }
 
     private int playoutVolume;
@@ -2006,6 +2139,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         this.playoutVolume = playoutVolume;
         this.publishSignalVolume = publishSignalVolume;
         haveAdjustVolum = true;
+        if (isUserNewLayer && ktvChorusHelper != null) {
+            ktvChorusHelper.setVideoVolume(playoutVolume, publishSignalVolume);
+        }
     }
 
     @Override
@@ -2112,92 +2248,98 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             }
         }
 
-        if (mediaPlayerState.equals(PLAYER_STATE_PLAYING)) {
+        // TODO AgoraKTVChorusHelper 适配, 注释, 都放在 AgoraKTVChorusHelper 里面处理, 但需要注意review
+        if (!isUserNewLayer) {
+            if (mediaPlayerState.equals(PLAYER_STATE_PLAYING)) {
+                //多线程NPE避免
+                IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+                if (syncProcessHelper != null) {
+                    syncProcessHelper.onStartPlay();
+                }
+                AgoraOldKTVChorusHelper ktvOldChorusHelper = this.ktvOldChorusHelper;
+                if (ktvOldChorusHelper != null) {
+                    ktvOldChorusHelper.onStartPlay();
+                }
+            }
+
+            RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+
             //多线程NPE避免
             IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+
+            if (rtcEngineEx != null && playerRole == Const.KTV_ROLE_LEADER_SINGER && audioMediaPlayer != null) {
+                StreamMessage streamMessage = new StreamMessage();
+                streamMessage.type = StreamMessage.TYPE_PLAY_STATUS;
+                if (syncProcessHelper != null) {
+                    streamMessage.currentTimeStamp = String.valueOf(syncProcessHelper.getNtpTime());
+                }
+                streamMessage.currentDuration = String.valueOf(audioMediaPlayer.getPlayPosition());
+                if (audioDuration <= 0) {
+                    audioDuration = audioMediaPlayer.getDuration();
+                }
+                streamMessage.audioDelay = String.valueOf(audioDelay);
+                streamMessage.audioUniId = audioUniId;
+                streamMessage.duration = String.valueOf(audioDuration);
+                streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
+                String data = GsonUtils.entityToJson(streamMessage);
+                if (data != null) {
+                    rtcEngineEx.sendStreamMessage(steamId, data.getBytes(StandardCharsets.UTF_8));
+                }
+            }
+
+
             if (syncProcessHelper != null) {
-                syncProcessHelper.onStartPlay();
+                syncProcessHelper.onPlayerStateChanged(mediaPlayerState, mediaPlayerError);
             }
-            AgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-            if (ktvChorusHelper != null) {
-                ktvChorusHelper.onStartPlay();
-            }
-        }
-
-        RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
-
-        //多线程NPE避免
-        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
-
-        if (rtcEngineEx != null && playerRole == Const.KTV_ROLE_LEADER_SINGER && audioMediaPlayer != null) {
-            StreamMessage streamMessage = new StreamMessage();
-            streamMessage.type = StreamMessage.TYPE_PLAY_STATUS;
-            if (syncProcessHelper != null) {
-                streamMessage.currentTimeStamp = String.valueOf(syncProcessHelper.getNtpTime());
-            }
-            streamMessage.currentDuration = String.valueOf(audioMediaPlayer.getPlayPosition());
-            if (audioDuration <= 0) {
-                audioDuration = audioMediaPlayer.getDuration();
-            }
-            streamMessage.audioDelay = String.valueOf(audioDelay);
-            streamMessage.audioUniId = audioUniId;
-            streamMessage.duration = String.valueOf(audioDuration);
-            streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
-            String data = GsonUtils.entityToJson(streamMessage);
-            if (data != null) {
-                rtcEngineEx.sendStreamMessage(steamId, data.getBytes(StandardCharsets.UTF_8));
-            }
-        }
-
-
-        if (syncProcessHelper != null){
-            syncProcessHelper.onPlayerStateChanged(mediaPlayerState, mediaPlayerError);
         }
 
     }
 
     @Override
     public void onPositionChanged(long l) {
-        //多线程NPE避免
-        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
-        if (syncProcessHelper != null){
-            syncProcessHelper.onPositionChanged(l);
-        }
-        IAudioPlayerCallBack audioPlayerCallBack = AgoraChatRoomEngine.this.audioPlayerCallBack;
-        if (!isDelayLocalSendPosition || playerRole == Const.KTV_ROLE_LEADER_SINGER
-                || (playerRole == Const.KTV_ROLE_ACCOMPANY_SINGER
-                && (!isAccompanyDelayPositionChange || Math.abs(l - currentAudioPosition) < 1000))) {
-            isDelayLocalSendPosition = false;
-            currentAudioPosition = l;
-            if (null != audioPlayerCallBack) {
-                audioPlayerCallBack.onAudioPositionChanged(uid, currentAudioPosition, audioUniId, false);
+        // TODO AgoraKTVChorusHelper 适配, 注释, 都放在 AgoraKTVChorusHelper 里面处理, 但需要注意review
+        if(!isUserNewLayer){
+            //多线程NPE避免
+            IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+            if (syncProcessHelper != null){
+                syncProcessHelper.onPositionChanged(l);
             }
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
-            if (rtcEngine!=null && playerRole == Const.KTV_ROLE_LEADER_SINGER) {
-                StreamMessage streamMessage = new StreamMessage();
-                streamMessage.type = StreamMessage.TYPE_PLAY_STATUS;
-                if (syncProcessHelper != null) {
-                    streamMessage.currentTimeStamp = String.valueOf(syncProcessHelper.getNtpTime());
+            IAudioPlayerCallBack audioPlayerCallBack = AgoraChatRoomEngine.this.audioPlayerCallBack;
+            if (!isDelayLocalSendPosition || playerRole == Const.KTV_ROLE_LEADER_SINGER
+                    || (playerRole == Const.KTV_ROLE_ACCOMPANY_SINGER
+                    && (!isAccompanyDelayPositionChange || Math.abs(l - currentAudioPosition) < 1000))) {
+                isDelayLocalSendPosition = false;
+                currentAudioPosition = l;
+                if (null != audioPlayerCallBack) {
+                    audioPlayerCallBack.onAudioPositionChanged(uid, currentAudioPosition, audioUniId, false);
                 }
-                streamMessage.currentDuration = String.valueOf(l - audioDelay);
-                streamMessage.audioDelay = String.valueOf(audioDelay);
-                if (audioDuration <= 0) {
-                    audioDuration = audioMediaPlayer.getDuration();
-                    SLogKt.SLogApi.e(TAG, "onPositionChanged getDuration:"+audioDuration);
+                RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+                if (rtcEngine!=null && playerRole == Const.KTV_ROLE_LEADER_SINGER) {
+                    StreamMessage streamMessage = new StreamMessage();
+                    streamMessage.type = StreamMessage.TYPE_PLAY_STATUS;
+                    if (syncProcessHelper != null) {
+                        streamMessage.currentTimeStamp = String.valueOf(syncProcessHelper.getNtpTime());
+                    }
+                    streamMessage.currentDuration = String.valueOf(l - audioDelay);
+                    streamMessage.audioDelay = String.valueOf(audioDelay);
+                    if (audioDuration <= 0) {
+                        audioDuration = audioMediaPlayer.getDuration();
+                        SLogKt.SLogApi.e(TAG, "onPositionChanged getDuration:"+audioDuration);
+                    }
+                    streamMessage.audioUniId = audioUniId;
+                    streamMessage.duration = String.valueOf(audioDuration);
+                    io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState = null;
+                    if (syncProcessHelper != null){
+                        mediaPlayerState = syncProcessHelper.getMediaPlayerState();
+                    }
+                    if (mediaPlayerState == null){
+                        mediaPlayerState = audioMediaPlayer.getState();
+                    }
+                    streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
+                    String data = GsonUtils.entityToJson(streamMessage);
+                    if (data != null)
+                        rtcEngine.sendStreamMessage(syncSteamId, data.getBytes(StandardCharsets.UTF_8));
                 }
-                streamMessage.audioUniId = audioUniId;
-                streamMessage.duration = String.valueOf(audioDuration);
-                io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState = null;
-                if (syncProcessHelper != null){
-                    mediaPlayerState = syncProcessHelper.getMediaPlayerState();
-                }
-                if (mediaPlayerState == null){
-                    mediaPlayerState = audioMediaPlayer.getState();
-                }
-                streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
-                String data = GsonUtils.entityToJson(streamMessage);
-                if (data != null)
-                    rtcEngine.sendStreamMessage(syncSteamId, data.getBytes(StandardCharsets.UTF_8));
             }
         }
 
@@ -2479,11 +2621,17 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (audioMediaPlayer != null) {
             audioMediaPlayer.selectAudioTrack(audioTrack);
         }
+        if (isUserNewLayer && null != ktvChorusHelper) {
+            ktvChorusHelper.selectAudioTrack(audioTrack);
+        }
         this.audioTrack = audioTrack;
     }
 
     @Override
     public long getAudioDuration() {
+        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
+            return ktvChorusHelper.getAudioDuration();
+        }
         if (audioMediaPlayer != null) {
             audioMediaPlayer.getDuration();
         }
@@ -2499,12 +2647,19 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     public void audioSeekTo(long l) {
+        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
+            ktvChorusHelper.audioSeekTo(l);
+            return;
+        }
         if (audioMediaPlayer != null) {
             audioMediaPlayer.seek(l);
         }
     }
 
     public SLMediaPlayerState getAudioPlayerState() {
+        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
+            return ktvChorusHelper.getAudioPlayerState();
+        }
         io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState;
         if (audioMediaPlayer != null) {
             mediaPlayerState = audioMediaPlayer.getState();
@@ -2557,6 +2712,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void setAudioPlayerCallBack(IAudioPlayerCallBack callBack) {
         this.audioPlayerCallBack = callBack;
+        if (isUserNewLayer && this.ktvChorusHelper != null) {
+            ktvChorusHelper.setAudioPlayerCallBack(callBack);
+        }
     }
 
     @Override

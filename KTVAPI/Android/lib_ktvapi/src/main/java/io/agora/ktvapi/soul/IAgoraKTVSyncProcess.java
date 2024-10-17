@@ -1,4 +1,4 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.zego.interfaces;
 
 import cn.soulapp.android.lib.media.zego.beans.StreamMessage;
 import io.agora.mediaplayer.Constants;

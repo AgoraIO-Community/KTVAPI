@@ -1,4 +1,4 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.zego;
 
 import static io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_FAILED;
 import static io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_IDLE;
@@ -24,6 +24,18 @@ import java.nio.charset.StandardCharsets;
 //import cn.soulapp.android.lib.media.zego.utils.GsonUtils;
 //import cn.soulapp.android.lib.media.IAudioPlayerCallBack;
 //import cn.soulapp.android.lib.media.zego.interfaces.IRoomCallback;
+import cn.soulapp.android.lib.media.Const;
+import cn.soulapp.android.lib.media.IAudioPlayerCallBack;
+import cn.soulapp.android.lib.media.SLMediaPlayerState;
+import cn.soulapp.android.lib.media.agroa.AgroaEngineConfig;
+import cn.soulapp.android.lib.media.agroa.AgroaEngineEventHandler;
+import cn.soulapp.android.lib.media.agroa.SAaoraInstance;
+import cn.soulapp.android.lib.media.zego.beans.PlayKTVParams;
+import cn.soulapp.android.lib.media.zego.beans.StreamMessage;
+import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVChorusHelper;
+import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVSyncProcess;
+import cn.soulapp.android.lib.media.zego.interfaces.IRoomCallback;
+import cn.soulapp.android.lib.media.zego.utils.GsonUtils;
 import io.agora.mediaplayer.IMediaPlayer;
 import io.agora.mediaplayer.IMediaPlayerObserver;
 import io.agora.mediaplayer.data.PlayerUpdatedInfo;
@@ -78,9 +90,9 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
 
 
     // TODO Add variables
-    private final IAudioPlayerCallBack audioPlayerCallBack;
+    private IAudioPlayerCallBack audioPlayerCallBack;
 
-    private final IRoomCallback iRoomCallback;
+    private IRoomCallback iRoomCallback;
 
     private String audioUrl;
 
@@ -90,13 +102,40 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
 
-    public AgoraKTVChorusHelper(RtcEngineEx rtcEngine, IAudioPlayerCallBack audioPlayerCallBack, IRoomCallback iRoomCallback) {
+    public AgoraKTVChorusHelper(RtcEngineEx rtcEngine) {
         this.mRtcEngine = rtcEngine;
-        this.audioPlayerCallBack = audioPlayerCallBack;
-        this.iRoomCallback = iRoomCallback;
+//        this.audioPlayerCallBack = audioPlayerCallBack;
+//        this.iRoomCallback = iRoomCallback;
         initAudioMediaPlayer();
     }
 
+    @Override
+    public void setAudioPlayerCallBack(IAudioPlayerCallBack audioPlayerCallBack) {
+        this.audioPlayerCallBack = audioPlayerCallBack;
+    }
+
+    @Override
+    public void setRoomCallBack(IRoomCallback iRoomCallback) {
+        this.iRoomCallback = iRoomCallback;
+    }
+
+    @Override
+    public void release() {
+        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+        if (syncProcessHelper != null) {
+            syncProcessHelper.stop();
+            this.syncProcessHelper = null;
+        }
+        if (mMediaPlayer != null) {
+            mMediaPlayer.unRegisterPlayerObserver(this);
+            mMediaPlayer.destroy();
+            mMediaPlayer = null;
+        }
+        audioDuration = 0;
+        haveAdjustVolum = false;
+    }
+
+    @Override
     public void switchSingerRole(int role) {
         if (mRole == Const.KTV_ROLE_AUDIENCE && role == Const.KTV_ROLE_LEADER_SINGER) {
             startPlay();
@@ -107,6 +146,9 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         } else if (mRole == Const.KTV_ROLE_ACCOMPANY_SINGER && role == Const.KTV_ROLE_AUDIENCE) {
             stopPlay();
         } else if (mRole == Const.KTV_ROLE_ACCOMPANY_SINGER && role == Const.KTV_ROLE_LEADER_SINGER) {
+            if (syncProcessHelper != null) {
+                syncProcessHelper.stop();
+            }
             //把背景音乐发布到主频道
             ChannelMediaOptions options = new ChannelMediaOptions();
             options.publishMediaPlayerAudioTrack = true;
@@ -171,6 +213,8 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         AgroaEngineConfig config = SAaoraInstance.getInstance().getConfig();
 
         AgoraKTVConfig ktvConfig = new AgoraKTVConfig();
+        ktvConfig.rtcEngine = mRtcEngine;
+        ktvConfig.mediaPlayer = mMediaPlayer;
         ktvConfig.role = role;
         ktvConfig.agroaEngineConfig = config;
         ktvConfig.chorusToken = params.chorusToken;
@@ -201,7 +245,11 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
 
         if (mMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING || changeSource) {
             if (mMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PAUSED) {
-                mMediaPlayer.openWithCustomSource(0, customDataProvider);
+                if (params.playType == Const.KtvAudioPlayType.playTypeEncryption) {
+                    mMediaPlayer.openWithCustomSource(0, customDataProvider);
+                } else {
+                    mMediaPlayer.open(url, 0);
+                }
             }
         }
     }
@@ -245,18 +293,21 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         }
     }
 
+    @Override
     public void pauseAudio() {
         if (mMediaPlayer != null) {
             mMediaPlayer.pause();
         }
     }
 
+    @Override
     public void resumeAudio() {
         if (mMediaPlayer != null) {
             mMediaPlayer.resume();
         }
     }
 
+    @Override
     public void selectAudioTrack(int audioTrack) {
         if (mMediaPlayer != null) {
             mMediaPlayer.selectAudioTrack(audioTrack);
@@ -264,10 +315,12 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         this.audioTrack = audioTrack;
     }
 
+    @Override
     public boolean isAudioPlaying() {
         return mMediaPlayer != null && mMediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING;
     }
 
+    @Override
     public long getAudioDuration() {
         if (mMediaPlayer != null) {
             mMediaPlayer.getDuration();
@@ -275,16 +328,19 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         return 0;
     }
 
+    @Override
     public long getAudioCurrentPosition() {
         return currentAudioPosition;
     }
 
+    @Override
     public void audioSeekTo(long l) {
         if (mMediaPlayer != null) {
             mMediaPlayer.seek(l);
         }
     }
 
+    @Override
     public SLMediaPlayerState getAudioPlayerState() {
         io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState;
         if (mMediaPlayer != null) {
@@ -308,6 +364,7 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         return SLMediaPlayerState.PLAYER_STATE_STOP;
     }
 
+    @Override
     public void setAudioDelay(int audioDelay) {
         this.audioDelay = audioDelay;
         if (syncProcessHelper != null) {
@@ -356,6 +413,7 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
     /**
      * 主唱推送人声流
      */
+    @Override
     public void onRecordAudioFrame(ByteBuffer buffer, long renderTimeMs) {
         if (mEnableMic && mRole == Const.KTV_ROLE_LEADER_SINGER && mHasJoinChannelEx) {
             //推送人声流
@@ -367,7 +425,7 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
     /**
      * 开始播放
      */
-    public void onStartPlay() {
+    private void onStartPlay() {
         if (mHasOnStart){
             return;
         }
@@ -387,11 +445,13 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
     /**
      * 麦克风是否禁用
      */
+    @Override
     public void enableMic(boolean enable) {
         mEnableMic = enable;
     }
 
 
+    @Override
     public String getChorusToken() {
         return mChorusToken;
     }
@@ -560,6 +620,7 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         rtcEngine.setInEarMonitoringVolume(volume);//本地耳返音量
     }
 
+    @Override
     public void setVideoVolume(int volume) {
         if (mMediaPlayer != null) {
             mMediaPlayer.adjustPlayoutVolume(playoutVolume);
@@ -570,6 +631,7 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
     private int playoutVolume;
     private int publishSignalVolume;
 
+    @Override
     public void setVideoVolume(int playoutVolume, int publishSignalVolume) {
         if (mMediaPlayer != null) {
             mMediaPlayer.adjustPlayoutVolume(playoutVolume);
@@ -580,6 +642,7 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
         haveAdjustVolum = true;
     }
 
+    // ================== IMediaPlayerObserver ==================
     @Override
     public void onPlayerStateChanged(io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState, io.agora.mediaplayer.Constants.MediaPlayerError mediaPlayerError) {
         if (audioUrl != null) {
@@ -752,5 +815,16 @@ class AgoraKTVChorusHelper implements IAgoraKTVChorusHelper, IMediaPlayerObserve
     @Override
     public void onAudioVolumeIndication(int volume) {
 
+    }
+
+    // ================== onStreamMessage ==================
+    @Override
+    public boolean onStreamMessage(int uid, int streamId, StreamMessage msg) {
+        //多线程NPE避免
+        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
+        if (syncProcessHelper != null) {
+            return syncProcessHelper.onStreamMessage(uid, streamId, msg);
+        }
+        return false;
     }
 }
