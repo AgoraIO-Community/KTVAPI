@@ -1492,9 +1492,6 @@ class KTVApiImpl : KTVApi, IMediaPlayerObserver, IMusicContentCenterExEventHandl
             this.pitch = data.speakerPitch.toDouble()
             this.progressInMs = data.progressInMs
         }
-//        runOnMainThread {
-//            lrcView?.onUpdatePitch(songCode, data)
-//        }
     }
 
     // ------------------------ AgoraRtcMediaPlayerDelegate ------------------------

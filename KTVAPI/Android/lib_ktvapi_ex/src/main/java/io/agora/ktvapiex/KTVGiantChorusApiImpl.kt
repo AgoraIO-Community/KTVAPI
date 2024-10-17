@@ -585,14 +585,15 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
                     musicLoadStateListener.onMusicLoadProgress(songCode, 100, MusicLoadStatus.COMPLETED, msg, lrcUrl)
                     musicLoadStateListener.onMusicLoadSuccess(songCode, "")
                 }
-            } else  if (status == MccExState.PRELOAD_STATE_PRELOADING) {
+            } else if (status == MccExState.PRELOAD_STATE_PRELOADING) {
                 // 预加载歌曲加载中
                 musicLoadStateListener.onMusicLoadProgress(
                     songCode,
                     percent,
                     MusicLoadStatus.INPROGRESS,
                     msg,
-                    lrcUrl)
+                    lrcUrl
+                )
             } else {
                 // 预加载歌曲失败
                 ktvApiLogError("loadMusic failed: MUSIC_PRELOAD_FAIL")
@@ -865,9 +866,8 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
 //                if (subScribeSingerMap.any { it.key == uid } && stats.e2eDelay > 300) {
 //                    //ToastUtils.showToast("当前订阅用户 $uid 延迟超过300ms，目前延迟：${stats.ntpE2eDelay}")
 //                }
-                    if (uid != mainSingerUid && uid != giantChorusApiConfig.musicStreamUid && subScribeSingerMap.containsKey(
-                            uid
-                        )
+                    if (uid != mainSingerUid && uid != giantChorusApiConfig.musicStreamUid
+                        && subScribeSingerMap.containsKey(uid)
                     ) {
                         subScribeSingerMap[uid] = stats.e2eDelay
                     }
@@ -1421,6 +1421,7 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
                     )
                 }
             } else if (jsonMsg.getString("cmd") == "setVoicePitch") {
+                // TODO: 大合唱走不到这里，观众不需要展示主唱 pitch？
                 val pitch = jsonMsg.getDouble("pitch")
                 val progressInMs = jsonMsg.getInt("progressInMs")
                 if (this.singerRole == KTVSingRole.Audience) {
@@ -1551,9 +1552,6 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
             this.pitch = data.speakerPitch.toDouble()
             this.progressInMs = data.progressInMs
         }
-//        runOnMainThread {
-//            lrcView?.onUpdatePitch(songCode, data)
-//        }
     }
 
     // ------------------------ AgoraRtcMediaPlayerDelegate ------------------------
@@ -1618,6 +1616,7 @@ class KTVGiantChorusApiImpl : KTVApi, IMediaPlayerObserver,
             msg["realTime"] = position_ms
             msg["playerState"] = MediaPlayerState.getValue(this.mediaPlayerState)
             msg["pitch"] = pitch
+            msg["progressInMs"] = progressInMs
             msg["songIdentifier"] = songIdentifier
             msg["forward"] = true
             msg["ver"] = lyricSyncVersion
