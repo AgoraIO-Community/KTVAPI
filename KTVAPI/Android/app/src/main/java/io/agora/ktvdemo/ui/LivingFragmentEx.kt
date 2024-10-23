@@ -5,6 +5,8 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.fragment.findNavController
 import io.agora.karaoke_view_ex.KaraokeView
 import io.agora.ktvapiex.*
@@ -55,6 +57,11 @@ class LivingFragmentEx : BaseFragment<FragmentLivingExBinding>() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v: View?, insets: WindowInsetsCompat ->
+            val inset = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPaddingRelative(inset.left, 0, inset.right, 0)
+            WindowInsetsCompat.CONSUMED
+        }
 
         val sceneName = if (KeyCenter.isNormalChorus) getString(R.string.app_normal_ktvapi_tag)
         else getString(R.string.app_giant_ktvapi_tag)

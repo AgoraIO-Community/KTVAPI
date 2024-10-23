@@ -5,4 +5,5 @@
     <color name="white">#FFFFFFFF</color>
     <color name="darker_gray">#AAA</color>
     <color name="lighter_gray">#DDD</color>
+    <color name="app_ktv_ic_launcher_background">#FAFCFB</color>
 </resources>
