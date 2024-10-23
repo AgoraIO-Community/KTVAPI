@@ -1,29 +1,28 @@
 package io.agora.ktvdemo.ui
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.fragment.findNavController
-import io.agora.karaoke_view.v11.KaraokeView
-import io.agora.karaoke_view_ex.constants.DownloadError
-import io.agora.karaoke_view_ex.downloader.LyricsFileDownloader
-import io.agora.karaoke_view_ex.downloader.LyricsFileDownloaderCallback
-import io.agora.ktvapi.*
+import io.agora.karaoke_view_ex.KaraokeView
+import io.agora.ktvapiex.*
 import io.agora.ktvdemo.BuildConfig
-import io.agora.ktvdemo.MyApplication
 import io.agora.ktvdemo.R
 import io.agora.ktvdemo.api.CloudApiManager
-import io.agora.ktvdemo.databinding.FragmentLivingBinding
+import io.agora.ktvdemo.databinding.FragmentLivingExBinding
 import io.agora.ktvdemo.rtc.RtcEngineController
 import io.agora.ktvdemo.utils.KeyCenter
-import io.agora.ktvdemo.utils.SongSourceType
 import io.agora.ktvdemo.utils.TokenGenerator
+import io.agora.mccex.IMusicContentCenterEx
+import io.agora.mccex.MusicContentCenterExConfiguration
+import io.agora.mccex.constants.ChargeMode
+import io.agora.mccex.constants.MccExState
+import io.agora.mccex.model.LineScoreData
+import io.agora.mccex.model.YsdVendorConfigure
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcConnection
@@ -33,7 +32,7 @@ import java.util.concurrent.Executors
 /*
  * K 歌体验页面
  */
-class LivingFragment : BaseFragment<FragmentLivingBinding>() {
+class LivingFragmentEx : BaseFragment<FragmentLivingExBinding>() {
 
     /*
      * 歌词组件的 view
@@ -52,8 +51,8 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
 
     private val scheduledThreadPool = Executors.newScheduledThreadPool(5)
 
-    override fun getViewBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentLivingBinding {
-        return FragmentLivingBinding.inflate(inflater)
+    override fun getViewBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentLivingExBinding {
+        return FragmentLivingExBinding.inflate(inflater)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -64,10 +63,9 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             WindowInsetsCompat.CONSUMED
         }
 
-        val sceneName =
-            if (KeyCenter.isNormalChorus) getString(R.string.app_normal_ktvapi_tag) else getString(R.string.app_giant_ktvapi_tag)
-        val suffix = if (KeyCenter.songSourceType==SongSourceType.Mcc) "Mcc" else "Local"
-        binding?.tvChorusScene?.text = "$sceneName Channel:${KeyCenter.channelId} $suffix"
+        val sceneName = if (KeyCenter.isNormalChorus) getString(R.string.app_normal_ktvapi_tag)
+        else getString(R.string.app_giant_ktvapi_tag)
+        binding?.tvChorusScene?.text = "$sceneName Channel:${KeyCenter.channelId} MccEx"
 
         // 大合唱模式下主唱需要启动云端合流
         if (KeyCenter.isBroadcaster && !KeyCenter.isNormalChorus) {
@@ -146,38 +144,43 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
                 if (KeyCenter.isBroadcaster) {
                     toast(getString(R.string.app_no_premission))
                 } else {
-                    val songCode = KeyCenter.mccSongCode
+                    val songCode = KeyCenter.mccExSongCode
                     // 使用声网版权中心歌单
                     val musicConfiguration = KTVLoadMusicConfiguration(
                         songCode.toString(), // 需要传入唯一的歌曲id，demo 简化逻辑传了songCode
                         KeyCenter.LeadSingerUid,
                         KTVLoadMusicMode.LOAD_MUSIC_ONLY,
                         false,
+                        needPitch = true
                     )
                     ktvApi.loadMusic(songCode, musicConfiguration, object : IMusicLoadStateListener {
                         override fun onMusicLoadSuccess(songCode: Long, lyricUrl: String) {
                             Log.d("Music", "onMusicLoadSuccess, songCode: $songCode, lyricUrl: $lyricUrl")
-                            // 切换身份为合唱者
-                            ktvApi.switchSingerRole(KTVSingRole.CoSinger, object : ISwitchRoleStateListener {
-                                override fun onSwitchRoleSuccess() {
-                                    mainHandler.post {
-                                        toast("加入合唱成功，自动开麦")
-                                        ktvApi.muteMic(false)
-                                        btMicStatus.text = "麦克风开"
-                                        tvSinger.text = getString(R.string.app_co_singer)
-                                        btJoinChorus.isActivated = true
-                                        btMicOn.isActivated = true
-                                        btMicOff.isActivated = false
-                                    }
-                                }
+                            ktvApi.startScore(songCode) { _, state, _ ->
+                                if (state == MccExState.START_SCORE_STATE_COMPLETED) {
+                                    // 切换身份为合唱者
+                                    ktvApi.switchSingerRole(KTVSingRole.CoSinger, object : ISwitchRoleStateListener {
+                                        override fun onSwitchRoleSuccess() {
+                                            mainHandler.post {
+                                                toast("加入合唱成功，自动开麦")
+                                                ktvApi.muteMic(false)
+                                                btMicStatus.text = "麦克风开"
+                                                tvSinger.text = getString(R.string.app_co_singer)
+                                                btJoinChorus.isActivated = true
+                                                btMicOn.isActivated = true
+                                                btMicOff.isActivated = false
+                                            }
+                                        }
 
-                                override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
-                                    mainHandler.post {
-                                        toast("加入合唱失败")
-                                        btJoinChorus.isActivated = false
-                                    }
+                                        override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
+                                            mainHandler.post {
+                                                toast("加入合唱失败")
+                                                btJoinChorus.isActivated = false
+                                            }
+                                        }
+                                    })
                                 }
-                            })
+                            }
 
                         }
 
@@ -313,67 +316,87 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
      */
     private fun initKTVApi() {
         // ------------------ 初始化内容中心 ------------------
-        KTVApi.debugMode = true
-        KTVApi.mccDomain = "api-test.agora.io"
+        val contentCenterConfiguration = MusicContentCenterExConfiguration()
+        contentCenterConfiguration.context = context
+        contentCenterConfiguration.vendorConfigure = YsdVendorConfigure(
+            appId = BuildConfig.EX_APP_ID,
+            appKey = BuildConfig.EX_APP_Key,
+            token = BuildConfig.EX_APP_TOKEN,
+            userId = BuildConfig.EX_USERID,
+            deviceId = "2323",
+            chargeMode = ChargeMode.ONCE,
+            urlTokenExpireTime = 60 * 15
+        )
+        contentCenterConfiguration.enableLog = true
+        contentCenterConfiguration.enableSaveLogToFile = true
+        contentCenterConfiguration.logFilePath = context?.getExternalFilesDir(null)?.path
+
+        val mMusicCenter = IMusicContentCenterEx.create(RtcEngineController.rtcEngine)!!
+        mMusicCenter.initialize(contentCenterConfiguration)
+
         if (KeyCenter.isNormalChorus) {
-            // 创建普通合唱ktvapi实例
-            ktvApi = createKTVApi(
-                KTVApiConfig(
-                    appId = BuildConfig.AGORA_APP_ID,
-                    rtmToken = RtcEngineController.rtmToken,
-                    engine = RtcEngineController.rtcEngine,
-                    channelName = KeyCenter.channelId,
-                    localUid = KeyCenter.localUid,
-                    chorusChannelName = "${KeyCenter.channelId}_ex",
-                    chorusChannelToken = RtcEngineController.chorusChannelRtcToken,
-                    maxCacheSize = 10,
-                    type = KTVType.Normal,
-                    musicType = if (KeyCenter.songSourceType == SongSourceType.Mcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL
-                )
+            ktvApi = KTVApiImpl()
+            val ktvApiConfig = KTVApiConfig(
+                BuildConfig.AGORA_APP_ID,
+                mMusicCenter,
+                RtcEngineController.rtcEngine,
+                KeyCenter.channelId,             // 演唱频道channelId
+                KeyCenter.localUid,              // uid
+                KeyCenter.channelId + "_ex", // 子频道名
+                RtcEngineController.chorusChannelRtcToken,
+                10,
+                KTVType.Normal,
+                KTVMusicType.SONG_CODE,
             )
+            ktvApi.initialize(ktvApiConfig)
         } else {
-            // 创建大合唱ktvapi实例
-            ktvApi = createKTVGiantChorusApi(
-                KTVGiantChorusApiConfig(
-                    appId = BuildConfig.AGORA_APP_ID,
-                    rtmToken = RtcEngineController.rtmToken,
-                    engine = RtcEngineController.rtcEngine,
-                    localUid = KeyCenter.localUid,
-                    audienceChannelName = KeyCenter.channelId + "_ad",
-                    audienceChannelToken = RtcEngineController.audienceChannelToken,
-                    chorusChannelName = KeyCenter.channelId,
-                    chorusChannelToken = RtcEngineController.chorusChannelRtcToken,
-                    musicStreamUid = 2023,
-                    musicStreamToken = RtcEngineController.musicStreamToken,
-                    maxCacheSize = 10,
-                    musicType = if (KeyCenter.songSourceType == SongSourceType.Mcc) KTVMusicType.SONG_CODE else KTVMusicType.SONG_URL
-                )
+            ktvApi = KTVGiantChorusApiImpl()
+            val ktvApiConfig = KTVGiantChorusApiConfig(
+                BuildConfig.AGORA_APP_ID,
+                mMusicCenter,
+                RtcEngineController.rtcEngine,
+                KeyCenter.localUid,              // uid
+                audienceChannelName = KeyCenter.channelId + "_ad",             // 观众频道channelId
+                audienceChannelToken = RtcEngineController.audienceChannelToken, // 观众频道channelId + uid = 加入观众频道的token
+                chorusChannelName = KeyCenter.channelId,  // 演唱频道channelId
+                chorusChannelToken = RtcEngineController.chorusChannelRtcToken,       // 演唱频道channelId + uid = 加入演唱频道的token
+                musicStreamUid = 2023,                  // mpk uid
+                musicStreamToken = RtcEngineController.musicStreamToken,         // 演唱频道channelId + mpk uid = mpk 流加入频道的token
+                maxCacheSize = 10,
+                musicType = KTVMusicType.SONG_CODE
             )
+            ktvApi.initialize(ktvApiConfig)
         }
         // 注册 ktvapi 事件
         ktvApi.addEventHandler(ktvApiEventHandler)
         // 设置歌词组件
         ktvApi.setLrcView(object : ILrcView {
 
-            override fun onUpdatePitch(pitch: Float?) {
-                pitch?.let {
-                    karaokeView?.setPitch(it)
-                }
-            }
-
             override fun onUpdateProgress(progress: Long?) {
-                progress?.let {
-                    karaokeView?.setProgress(it)
+                karaokeView?.setProgress(progress ?: 0L)
+            }
+
+            override fun onUpdatePitch(songCode: Long, pitch: Double, progressInMs: Int) {
+                if (isLyricDataSet) {
+                    karaokeView?.setPitch(pitch.toFloat(), progressInMs)
                 }
             }
 
-            override fun onDownloadLrcData(url: String?) {
-                url?.let {
-                    dealDownloadLrc(it)
-                }
+            override fun onLineScore(songCode: Long, value: LineScoreData) {
+
             }
 
-            override fun onHighPartTime(highStartTime: Long, highEndTime: Long) {
+            override fun onDownloadLrcData(lyricPath: String?, pitchPath: String?) {
+                lyricPath?.let { lrc ->
+                    val mLyricsModel = if (pitchPath.isNullOrEmpty())
+                        KaraokeView.parseLyricData(File(lrc), null)
+                    else KaraokeView.parseLyricData(File(lrc), File(pitchPath))
+
+                    mLyricsModel?.let { lyricModel ->
+                        karaokeView?.setLyricData(lyricModel)
+                        isLyricDataSet = true
+                    }
+                }
             }
         })
     }
@@ -402,22 +425,46 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
             )
         } else {
             // 大合唱加入频道
-            // 大合唱加入频道
-            RtcEngineController.rtcEngine.joinChannelEx(
-                RtcEngineController.audienceChannelToken,
-                RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid),
-                channelMediaOptions,
-                object : IRtcEngineEventHandler() {
-                    override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
-                        (ktvApi as KTVGiantChorusApiImpl).setAudienceStreamMessage(uid, streamId, data)
-                    }
-
-                    override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
-                        super.onAudioMetadataReceived(uid, data)
-                        (ktvApi as KTVGiantChorusApiImpl).setAudienceAudioMetadataReceived(uid, data)
-                    }
+            if (!KeyCenter.isBroadcaster) {
+                val channelMediaOptions = ChannelMediaOptions().apply {
+                    autoSubscribeAudio = true
+                    clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_AUDIENCE
+                    autoSubscribeVideo = true
+                    autoSubscribeAudio = true
+                    publishCameraTrack = false
+                    publishMicrophoneTrack = false
                 }
-            )
+                RtcEngineController.rtcEngine.joinChannelEx(
+                    RtcEngineController.audienceChannelToken,
+                    RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid),
+                    channelMediaOptions,
+                    object : IRtcEngineEventHandler() {
+                        override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
+//                            (ktvApi as KTVGiantChorusApiImpl).setAudienceStreamMessage(uid, streamId, data)
+                        }
+
+                        override fun onAudioMetadataReceived(uid: Int, data: ByteArray?) {
+                            super.onAudioMetadataReceived(uid, data)
+                            (ktvApi as KTVGiantChorusApiImpl).setAudienceAudioMetadataReceived(uid, data)
+                        }
+                    }
+                )
+            } else {
+                // 主唱加入演唱频道
+                val channelMediaOptions = ChannelMediaOptions().apply {
+                    autoSubscribeAudio = true
+                    clientRoleType = io.agora.rtc2.Constants.CLIENT_ROLE_BROADCASTER
+                    autoSubscribeVideo = true
+                    autoSubscribeAudio = true
+                    publishCameraTrack = false
+                    publishMicrophoneTrack = true
+                }
+                RtcEngineController.rtcEngine.joinChannel(
+                    RtcEngineController.chorusChannelRtcToken,
+                    KeyCenter.channelId, KeyCenter.localUid,
+                    channelMediaOptions
+                )
+            }
             RtcEngineController.rtcEngine.setParametersEx(
                 "{\"rtc.use_audio4\": true}",
                 RtcConnection(KeyCenter.channelId + "_ad", KeyCenter.localUid)
@@ -432,101 +479,53 @@ class LivingFragment : BaseFragment<FragmentLivingBinding>() {
      * 加载、播放音乐
      */
     private fun loadMusic() {
-        if (KeyCenter.songSourceType == SongSourceType.Mcc) {
-            // 使用声网版权中心歌单
-            val songCode = KeyCenter.mccSongCode
-            // 使用声网版权中心歌单
-            val musicConfiguration = KTVLoadMusicConfiguration(
-                songCode.toString(), // 需要传入唯一的歌曲id，demo 简化逻辑传了songCode
-                KeyCenter.LeadSingerUid,
-                if (KeyCenter.isBroadcaster) KTVLoadMusicMode.LOAD_MUSIC_AND_LRC else KTVLoadMusicMode.LOAD_LRC_ONLY,
-            )
-            ktvApi.loadMusic(songCode, musicConfiguration, object : IMusicLoadStateListener {
-                override fun onMusicLoadSuccess(songCode: Long, lyricUrl: String) {
-                    Log.d("Music", "onMusicLoadSuccess, songCode: $songCode, lyricUrl: $lyricUrl")
-                    if (KeyCenter.isBroadcaster) {
-                        ktvApi.switchSingerRole(KTVSingRole.LeadSinger, object : ISwitchRoleStateListener {
-                            override fun onSwitchRoleSuccess() {
+        val songCode = KeyCenter.mccExSongCode
+        // 使用声网版权中心歌单
+        val musicConfiguration = KTVLoadMusicConfiguration(
+            songCode.toString(), // 需要传入唯一的歌曲id，demo 简化逻辑传了songCode
+            KeyCenter.LeadSingerUid,
+            if (KeyCenter.isBroadcaster) KTVLoadMusicMode.LOAD_MUSIC_AND_LRC
+            else KTVLoadMusicMode.LOAD_LRC_ONLY,
+            needPitch = true
+        )
+        ktvApi.loadMusic(songCode, musicConfiguration, object : IMusicLoadStateListener {
+            override fun onMusicLoadSuccess(songCode: Long, lyricUrl: String) {
+                Log.d("Music", "onMusicLoadSuccess, songCode: $songCode, lyricUrl: $lyricUrl")
+                ktvApi.startScore(songCode) { _, state, _ ->
+                    if (state == MccExState.START_SCORE_STATE_COMPLETED) {
+                        if (KeyCenter.isBroadcaster) {
+                            ktvApi.switchSingerRole(KTVSingRole.LeadSinger, object : ISwitchRoleStateListener {
+                                override fun onSwitchRoleSuccess() {
 
-                                // 加载成功开始播放音乐
-                                ktvApi.startSing(songCode, 0)
-                            }
+                                    // 加载成功开始播放音乐
+                                    ktvApi.startSing(songCode, 0)
+                                }
 
-                            override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
+                                override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
 
-                            }
-                        })
+                                }
+                            })
+                        }
                     }
                 }
-
-                override fun onMusicLoadFail(songCode: Long, reason: KTVLoadMusicFailReason) {
-                    Log.d("Music", "onMusicLoadFail, songCode: $songCode, reason: $reason")
-                }
-
-                override fun onMusicLoadProgress(
-                    songCode: Long,
-                    percent: Int,
-                    status: MusicLoadStatus,
-                    msg: String?,
-                    lyricUrl: String?
-                ) {
-                    Log.d("Music", "onMusicLoadProgress, songCode: $songCode, percent: $percent")
-                    mainHandler.post {
-                        binding?.btLoadProgress?.text = "下载进度：$percent%"
-                    }
-                }
-            })
-        } else {
-            // 使用本地音乐文件
-            val musicConfiguration = KTVLoadMusicConfiguration(
-                KeyCenter.mccSongCode.toString(), // 需要传入唯一的歌曲id，demo 简化逻辑传了songCode
-                KeyCenter.LeadSingerUid,
-                KTVLoadMusicMode.LOAD_NONE
-            )
-            val songPath = requireActivity().filesDir.absolutePath + File.separator
-            val songName = "不如跳舞"
-            ktvApi.loadMusic("$songPath$songName.mp4", musicConfiguration)
-            val fileLrc = File("$songPath$songName.xml")
-            val lyricsModel = KaraokeView.parseLyricsData(fileLrc)
-            karaokeView?.lyricsData = lyricsModel
-            if (KeyCenter.isBroadcaster) {
-                ktvApi.switchSingerRole(KTVSingRole.LeadSinger, object : ISwitchRoleStateListener {
-                    override fun onSwitchRoleSuccess() {
-                        ktvApi.startSing("$songPath$songName.mp4", 0)
-                    }
-
-                    override fun onSwitchRoleFail(reason: SwitchRoleFailReason) {
-
-                    }
-                })
             }
-        }
 
-    }
+            override fun onMusicLoadFail(songCode: Long, reason: KTVLoadMusicFailReason) {
+                Log.d("Music", "onMusicLoadFail, songCode: $songCode, reason: $reason")
+            }
 
-    private fun dealDownloadLrc(lrcUrl: String) {
-        val context: Context = MyApplication.app()
-        LyricsFileDownloader.getInstance(context)
-            .setLyricsFileDownloaderCallback(object : LyricsFileDownloaderCallback {
-                override fun onLyricsFileDownloadProgress(requestId: Int, progress: Float) {}
-
-                override fun onLyricsFileDownloadCompleted(requestId: Int, fileData: ByteArray, error: DownloadError?) {
-                    if (error == null) {
-                        val lyricsModel = KaraokeView.parseLyricsData(fileData)
-                        if (lyricsModel == null) {
-                            Toast.makeText(context, "Unexpected parseLyricsData", Toast.LENGTH_SHORT).show()
-                            return
-                        }
-                        karaokeView?.let {
-                            karaokeView?.lyricsData = lyricsModel
-                        }
-                    } else {
-                        error.message?.let {
-                            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-                        }
-                    }
+            override fun onMusicLoadProgress(
+                songCode: Long,
+                percent: Int,
+                status: MusicLoadStatus,
+                msg: String?,
+                lyricUrl: String?
+            ) {
+                Log.d("Music", "onMusicLoadProgress, songCode: $songCode, percent: $percent")
+                mainHandler.post {
+                    binding?.btLoadProgress?.text = "下载进度：$percent%"
                 }
-            })
-        LyricsFileDownloader.getInstance(context).download(lrcUrl)
+            }
+        })
     }
 }

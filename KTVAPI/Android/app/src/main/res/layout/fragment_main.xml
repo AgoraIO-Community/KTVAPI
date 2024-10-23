@@ -2,7 +2,8 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@mipmap/bg_app_def_white">
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/horizontal20"
@@ -28,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:layout_marginTop="32dp"
-        android:background="@color/darker_gray"
+        android:background="@color/button_color_selector"
         android:text="@string/app_lead_singer"
         android:textColor="@color/black"
         app:layout_constraintEnd_toEndOf="parent"
@@ -41,7 +42,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:layout_marginTop="16dp"
-        android:background="@color/lighter_gray"
+        android:background="@color/button_color_selector"
         android:text="@string/app_audience"
         android:textColor="@color/black"
         app:layout_constraintEnd_toEndOf="parent"
@@ -63,39 +64,14 @@
         app:layout_constraintTop_toBottomOf="@id/btnAudience" />
 
     <RadioGroup
-        android:id="@+id/groupSongType"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="32dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/etChannelId">
-
-        <RadioButton
-            android:id="@+id/rbtMccSong"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="@string/app_mcc_tag" />
-
-        <RadioButton
-            android:id="@+id/rbtLocalSong"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="@string/app_local_music_tag" />
-    </RadioGroup>
-
-    <RadioGroup
-        android:id="@+id/ktvApiType"
+        android:id="@+id/chorusScene"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:layout_marginTop="10dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/groupSongType">
+        app:layout_constraintTop_toBottomOf="@id/etChannelId">
 
         <RadioButton
             android:id="@+id/rbtNormalChorus"
@@ -112,6 +88,38 @@
             android:text="@string/app_giant_ktvapi_tag" />
     </RadioGroup>
 
+    <RadioGroup
+        android:id="@+id/songSourceType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/chorusScene">
+
+        <RadioButton
+            android:id="@+id/rbtLocalSong"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Local" />
+
+        <RadioButton
+            android:id="@+id/rbtMccSong"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Mcc" />
+
+        <RadioButton
+            android:id="@+id/rbtMccExSong"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="MccEx" />
+    </RadioGroup>
+
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnStartChorus"
@@ -123,5 +131,5 @@
         android:textColor="@color/black"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/ktvApiType" />
+        app:layout_constraintTop_toBottomOf="@id/songSourceType" />
 </androidx.constraintlayout.widget.ConstraintLayout>
