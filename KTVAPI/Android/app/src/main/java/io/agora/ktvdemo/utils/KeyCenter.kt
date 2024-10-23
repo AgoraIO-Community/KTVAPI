@@ -7,8 +7,8 @@ object KeyCenter {
      */
     const val LeadSingerUid = 2024
 
-    val songCode: Long  get() = if (isMccEx) 40289835 else 6625526605291650
-    val songCode2: Long get() = if (isMccEx) 89488966 else 6654550265524810
+    val mccSongCode: Long  get() = 6625526605291650  // 6654550265524810
+    val mccExSongCode: Long get() = 89488966 //40289835
 
     /*
      * 加入的频道名
@@ -21,11 +21,6 @@ object KeyCenter {
     var localUid: Int = 2024
 
     /*
-     * 选择的歌曲类型
-     */
-    var isMcc: Boolean = true
-
-    /*
      * 体验 KTVAPI 的类型， true为普通合唱、false为大合唱
      */
     var isNormalChorus: Boolean = true
@@ -36,7 +31,18 @@ object KeyCenter {
     var isBroadcaster: Boolean = false
 
     /**
-     * 是否是 MCC EX
+     * 歌曲来源
      */
-    var isMccEx: Boolean = false
+    var songSourceType: SongSourceType = SongSourceType.Local
+}
+
+/**
+ * Song source type
+ *
+ * @constructor Create empty Song source type
+ */
+enum class SongSourceType{
+    Local, // 本地歌曲
+    Mcc,   // Agora MCC
+    MccEx  // Agora MCC EX
 }

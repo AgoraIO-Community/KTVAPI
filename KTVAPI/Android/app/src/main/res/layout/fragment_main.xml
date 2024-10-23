@@ -63,31 +63,6 @@
         app:layout_constraintTop_toBottomOf="@id/btnAudience" />
 
     <RadioGroup
-        android:id="@+id/groupSongType"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="32dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/etChannelId">
-
-        <RadioButton
-            android:id="@+id/rbtMccSong"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="十年" />
-
-        <RadioButton
-            android:id="@+id/rbtLocalSong"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="在你的身边" />
-    </RadioGroup>
-
-    <RadioGroup
         android:id="@+id/chorusScene"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -95,7 +70,7 @@
         android:layout_marginTop="10dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/groupSongType">
+        app:layout_constraintTop_toBottomOf="@id/etChannelId">
 
         <RadioButton
             android:id="@+id/rbtNormalChorus"
@@ -113,7 +88,7 @@
     </RadioGroup>
 
     <RadioGroup
-        android:id="@+id/mccType"
+        android:id="@+id/songSourceType"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
@@ -123,18 +98,25 @@
         app:layout_constraintTop_toBottomOf="@id/chorusScene">
 
         <RadioButton
-            android:id="@+id/rbtMcc"
+            android:id="@+id/rbtLocalSong"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:text="@string/app_mcc_tag" />
+            android:text="Local" />
 
         <RadioButton
-            android:id="@+id/rbtMccEx"
+            android:id="@+id/rbtMccSong"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Mcc" />
+
+        <RadioButton
+            android:id="@+id/rbtMccExSong"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:text="@string/app_mccex_tag" />
+            android:text="MccEx" />
     </RadioGroup>
 
 
@@ -148,5 +130,5 @@
         android:textColor="@color/black"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/mccType" />
+        app:layout_constraintTop_toBottomOf="@id/songSourceType" />
 </androidx.constraintlayout.widget.ConstraintLayout>

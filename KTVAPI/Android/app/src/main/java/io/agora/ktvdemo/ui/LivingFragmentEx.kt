@@ -137,7 +137,7 @@ class LivingFragmentEx : BaseFragment<FragmentLivingExBinding>() {
                 if (KeyCenter.isBroadcaster) {
                     toast(getString(R.string.app_no_premission))
                 } else {
-                    val songCode = if (KeyCenter.isMcc) KeyCenter.songCode else KeyCenter.songCode2
+                    val songCode = KeyCenter.mccExSongCode
                     // 使用声网版权中心歌单
                     val musicConfiguration = KTVLoadMusicConfiguration(
                         songCode.toString(), // 需要传入唯一的歌曲id，demo 简化逻辑传了songCode
@@ -472,7 +472,7 @@ class LivingFragmentEx : BaseFragment<FragmentLivingExBinding>() {
      * 加载、播放音乐
      */
     private fun loadMusic() {
-        val songCode = if (KeyCenter.isMcc) KeyCenter.songCode else KeyCenter.songCode2
+        val songCode = KeyCenter.mccExSongCode
         // 使用声网版权中心歌单
         val musicConfiguration = KTVLoadMusicConfiguration(
             songCode.toString(), // 需要传入唯一的歌曲id，demo 简化逻辑传了songCode

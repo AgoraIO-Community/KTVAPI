@@ -13,6 +13,7 @@ import io.agora.ktvdemo.R
 import io.agora.ktvdemo.rtc.RtcEngineController
 import io.agora.ktvdemo.databinding.FragmentMainBinding
 import io.agora.ktvdemo.utils.KeyCenter
+import io.agora.ktvdemo.utils.SongSourceType
 import io.agora.ktvdemo.utils.TokenGenerator
 import kotlin.random.Random
 
@@ -29,9 +30,9 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
         super.onViewCreated(view, savedInstanceState)
         binding?.apply {
             resetRoleView()
-            if (KeyCenter.isBroadcaster){
+            if (KeyCenter.isBroadcaster) {
                 KeyCenter.localUid = KeyCenter.LeadSingerUid
-            }else{
+            } else {
                 KeyCenter.localUid = Random(System.currentTimeMillis()).nextInt(100000) + 1000000
             }
             setRoleView()
@@ -57,33 +58,27 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                 setRoleView()
             }
 
-            // TODO: 暂时是两首不同的 songCode
-            // 选择加载歌曲的类型， MCC 声网歌曲中心或者本地歌曲
-            if (KeyCenter.isMcc){
-                groupSongType.check(R.id.rbtMccSong)
-            }else{
-                groupSongType.check(R.id.rbtLocalSong)
+            when (KeyCenter.songSourceType) {
+                SongSourceType.Local -> songSourceType.check(R.id.rbtLocalSong)
+                SongSourceType.Mcc -> songSourceType.check(R.id.rbtMccSong)
+                SongSourceType.MccEx -> songSourceType.check(R.id.rbtMccExSong)
             }
-            groupSongType.setOnCheckedChangeListener { _, checkedId -> KeyCenter.isMcc = checkedId == R.id.rbtMccSong }
+            songSourceType.setOnCheckedChangeListener { _, checkedId ->
+                KeyCenter.songSourceType = when (checkedId) {
+                    R.id.rbtLocalSong -> SongSourceType.Local
+                    R.id.rbtMccSong -> SongSourceType.Mcc
+                    else -> SongSourceType.MccEx
+                }
+            }
 
             // 选择体验合唱场景， 普通合唱或者大合唱
-            if (KeyCenter.isNormalChorus){
+            if (KeyCenter.isNormalChorus) {
                 chorusScene.check(R.id.rbtNormalChorus)
-            }else{
+            } else {
                 chorusScene.check(R.id.rbtGiantChorus)
             }
             chorusScene.setOnCheckedChangeListener { _, checkedId ->
                 KeyCenter.isNormalChorus = checkedId == R.id.rbtNormalChorus
-            }
-
-            // 选择体验 KTVApi macc or maccEx， 歌曲中心来源不同，歌词组件不同
-            if (KeyCenter.isMccEx){
-                mccType.check(R.id.rbtMccEx)
-            }else{
-                mccType.check(R.id.rbtMcc)
-            }
-            mccType.setOnCheckedChangeListener { _, checkedId ->
-                KeyCenter.isMccEx = checkedId == R.id.rbtMccEx
             }
 
             // 开始体验按钮
@@ -124,9 +119,9 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                                     RtcEngineController.audienceChannelToken = rtcToken
                                     RtcEngineController.rtmToken = rtmToken
                                     RtcEngineController.chorusChannelRtcToken = chorusToken
-                                    if (KeyCenter.isMccEx){
+                                    if (KeyCenter.songSourceType==SongSourceType.MccEx) {
                                         findNavController().navigate(R.id.action_mainFragment_to_livingFragmentEx)
-                                    }else{
+                                    } else {
                                         findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
                                     }
                                 },
@@ -145,9 +140,9 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
                                             RtcEngineController.rtmToken = rtmToken
                                             RtcEngineController.audienceChannelToken = audienceToken
                                             RtcEngineController.musicStreamToken = musicToken
-                                            if (KeyCenter.isMccEx){
+                                            if (KeyCenter.songSourceType==SongSourceType.MccEx) {
                                                 findNavController().navigate(R.id.action_mainFragment_to_livingFragmentEx)
-                                            }else{
+                                            } else {
                                                 findNavController().navigate(R.id.action_mainFragment_to_livingFragment)
                                             }
                                         },
@@ -181,7 +176,7 @@ class MainFragment : BaseFragment<FragmentMainBinding>() {
     private fun setRoleView() {
         binding?.apply {
             btnLeadSinger.isActivated = KeyCenter.isBroadcaster
-            btnAudience.isActivated =  !KeyCenter.isBroadcaster
+            btnAudience.isActivated = !KeyCenter.isBroadcaster
         }
     }
 }
