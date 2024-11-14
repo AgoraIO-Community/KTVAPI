@@ -1,4 +1,4 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.agroa;
 
 /**
  * Author : walid

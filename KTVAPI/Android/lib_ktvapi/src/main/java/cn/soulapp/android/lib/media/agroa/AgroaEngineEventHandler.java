@@ -1,4 +1,4 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.agroa;
 
 import static io.agora.rtc2.Constants.CONNECTION_CHANGED_INTERRUPTED;
 import static io.agora.rtc2.Constants.CONNECTION_STATE_CONNECTED;

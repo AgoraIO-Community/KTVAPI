@@ -1,12 +1,8 @@
-package cn.soulapp.android.lib.media.zego.interfaces;
+package cn.soulapp.android.lib.media.agroa.interfaces;
 
-import cn.soulapp.android.lib.media.zego.beans.StreamMessage;
+import cn.soulapp.android.lib.media.agroa.AgoraKTVStreamMessage;
 import io.agora.mediaplayer.Constants;
 
-/**
- * 声网同步方案抽象类
- * Created by 罗康辉 on 2022/11/21
- */
 public interface IAgoraKTVSyncProcess {
     public void startSyncProcess();
 
@@ -18,7 +14,7 @@ public interface IAgoraKTVSyncProcess {
      *
      * @return true代表是否拦截
      */
-    public boolean onStreamMessage(int uid, int streamId, StreamMessage msg);
+    public boolean onStreamMessage(int uid, int streamId, AgoraKTVStreamMessage msg);
 
     /**
      * 进度回调

@@ -22,14 +22,15 @@ import java.util.concurrent.Callable;
 import cn.mate.android.config.SConfiger;
 import cn.soul.insight.log.core.SLogKt;
 import cn.soulapp.android.lib.analyticsV2.SoulAnalyticsV2;
-import cn.soulapp.android.lib.media.Const;
 import cn.soulapp.android.lib.media.IAudioPlayerCallBack;
 import cn.soulapp.android.lib.media.ResultCode;
 import cn.soulapp.android.lib.media.SLMediaPlayerState;
+import cn.soulapp.android.lib.media.agroa.AgoraKTVConfig;
+import cn.soulapp.android.lib.media.agroa.AgoraKTVSyncProcessNTPHelper;
 import cn.soulapp.android.lib.media.agroa.AgroaEngineConfig;
 import cn.soulapp.android.lib.media.agroa.BuildConfig;
 import cn.soulapp.android.lib.media.agroa.RtcEngineHandler;
-import cn.soulapp.android.lib.media.agroa.SAaoraInstance;
+import cn.soulapp.android.lib.media.agroa.AgoraRtcBridge;
 import cn.soulapp.android.lib.media.rtc.SoulRtcEngine;
 import cn.soulapp.android.lib.media.volcengine.GameParams;
 import cn.soulapp.android.lib.media.zego.beans.AudioRecordingParams;
@@ -37,7 +38,7 @@ import cn.soulapp.android.lib.media.zego.beans.PlayKTVParams;
 import cn.soulapp.android.lib.media.zego.beans.RemoteViewParams;
 import cn.soulapp.android.lib.media.zego.beans.StreamMessage;
 import cn.soulapp.android.lib.media.zego.beans.ZegoRoomLoginEvent;
-import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVChorusHelper;
+import cn.soulapp.android.lib.media.zego.interfaces.IAgoraRtcBridge;
 import cn.soulapp.android.lib.media.zego.interfaces.IAgoraKTVSyncProcess;
 import cn.soulapp.android.lib.media.zego.interfaces.IAudioRecordCallBack;
 import cn.soulapp.android.lib.media.zego.interfaces.IChatRoomEngine;
@@ -175,7 +176,6 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     private int audioDelay;
     private String chatType = SoulRtcEngine.Type.TYPE_BROADCAST;
     private IAgoraKTVSyncProcess syncProcessHelper;//KTV合唱同步
-    private IAgoraKTVChorusHelper ktvChorusHelper;//KTV合唱帮助类
     private AgoraOldKTVChorusHelper ktvOldChorusHelper;//KTV合唱帮助类
     private int playerRole;
     private int playbackVolume = 100;
@@ -215,9 +215,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         this.userId = userId;
         this.appID = appID;
         Matrix.setIdentityM(matrix, 0);
-        SAaoraInstance.getInstance().initWorkerThread(context, Integer.parseInt(userId), appID, soPath);
+        AgoraRtcBridge.getInstance().initWorkerThread(context, Integer.parseInt(userId), appID, soPath);
         SLogKt.SLogApi.e("RoomChatEngineAgora", "initEngine initWorkerThread, soPath is = " + soPath + " appID = " + appID + " userId = " + userId);
-        SAaoraInstance.getInstance().getEventHandler().addEventHandler(iRtcEngineEventHandler = new RtcEngineHandler() {
+        AgoraRtcBridge.getInstance().getEventHandler().addEventHandler(iRtcEngineEventHandler = new RtcEngineHandler() {
             @Override
             public void onFirstRemoteVideoDecoded(int uid, int width, int height, int elapsed) {
 
@@ -227,7 +227,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             public void onJoinChannelSuccess(String channel, int uid, int elapsed) {
                 isLogin = true;
                 SLogKt.SLogApi.e("RoomChatEngineAgora", "onJoinChannelSuccess initWorkerThread, channel is = " + channel);
-//                SAaoraInstance.getInstance().rtcEngine().enableVideo();
+//                SAgoraInstance.getInstance().rtcEngine().enableVideo();
                 if (SoulRtcEngine.Type.TYPE_COMMUNICATION.equals(chatType)) {
                     SLogKt.SLogApi.e("RoomChatEngineAgora", "onJoinChannelSuccess takeSeat");
                     takeSeat();
@@ -335,8 +335,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 super.onTokenPrivilegeWillExpire(token);
                 // TODO AgoraKTVChorusHelper 适配
                 if (isUserNewLayer) {
-                    IAgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
-                    if (token != null && ktvChorusHelper != null && token.equals(ktvChorusHelper.getChorusToken())) {
+                    if (token != null && token.equals(AgoraRtcBridge.getInstance().getChorusToken())) {
                         //合唱流token过期，直接不处理
                         return;
                     }
@@ -355,7 +354,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 //                iRoomCallback.onRequestPublishToken(new IFetchTokenResultBlock() {
 //                    @Override
 //                    public void fetchTokenResult(String token) {
-//                        SAaoraInstance.getInstance().rtcEngine().renewToken(token);
+//                        SAgoraInstance.getInstance().rtcEngine().renewToken(token);
 //                    }
 //                });
             }
@@ -377,10 +376,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                                 // TODO AgoraKTVChorusHelper 适配
                                 if (isUserNewLayer) {
                                     //多线程NPE避免
-                                    IAgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
-                                    if (ktvChorusHelper != null) {
-                                        isHandle = ktvChorusHelper.onStreamMessage(uid, streamId, message);
-                                    }
+                                    isHandle = AgoraRtcBridge.getInstance().syncChorusProcess(uid, streamId, message);
                                 } else {
                                     IAgoraKTVSyncProcess syncProcessHelper = AgoraChatRoomEngine.this.syncProcessHelper;
                                     if (syncProcessHelper != null) {
@@ -446,10 +442,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 audioDelay = stats.audioPlayoutDelay;
                 // TODO AgoraKTVCourseHelper 适配
                 if (isUserNewLayer) {
-                    IAgoraKTVChorusHelper ktvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
-                    if (ktvChorusHelper != null) {
-                        ktvChorusHelper.setAudioDelay(audioDelay);
-                    }
+                    AgoraRtcBridge.getInstance().setAudioDelay(audioDelay);
                 } else {
                     IAgoraKTVSyncProcess syncProcessHelper = AgoraChatRoomEngine.this.syncProcessHelper;
                     if (syncProcessHelper != null) {
@@ -603,14 +596,14 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 }
             }
         });
-        if (SAaoraInstance.getInstance().rtcEngine() == null) return;
+        if (AgoraRtcBridge.getInstance().rtcEngine() == null) return;
 //        registerVolumeChangeReceiver(context);
         IEngineInitCallback initCallback = AgoraChatRoomEngine.this.initCallback;
         if (initCallback != null) {
             initCallback.onEngineInit();
         }
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
-        SLogKt.SLogApi.e("RoomChatEngineAgora", "SAaoraInstance.getInstance().rtcEngine() rtcEngine = " + rtcEngine);
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
+        SLogKt.SLogApi.e("RoomChatEngineAgora", "SAgoraInstance.getInstance().rtcEngine() rtcEngine = " + rtcEngine);
         if (rtcEngine == null) return;
         if (isMultiRoom){
             //聊天室设为这个，默认值上麦后走的通话音量
@@ -623,11 +616,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             public boolean onRecordAudioFrame(String channelId, int type, int samplesPerChannel, int bytesPerSample, int channels, int samplesPerSec, ByteBuffer buffer, long renderTimeMs, int avsync_type) {
                 // TODO AgoraKTVChorusHelper 适配
                 if (isUserNewLayer) {
-                    IAgoraKTVChorusHelper tempKtvChorusHelper = AgoraChatRoomEngine.this.ktvChorusHelper;
                     //多线程可能导致NPE
-                    if (tempKtvChorusHelper != null) {
-                        tempKtvChorusHelper.onRecordAudioFrame(buffer, renderTimeMs);
-                    }
+                    AgoraRtcBridge.getInstance().onRecordAudioFrame(buffer, renderTimeMs);
                     IAudioPlayerCallBack audioPlayerCallBack = AgoraChatRoomEngine.this.audioPlayerCallBack;
                     if (null != audioPlayerCallBack) {
                         audioPlayerCallBack.onAudioPrep(buffer, samplesPerSec);
@@ -719,9 +709,6 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 //            rtcEngine.setParameters("{\"rtc.debug.enable\":true}");
 //            rtcEngine.setParameters("{\"che.audio.frame_dump\":{\"location\":\"all\",\"action\":\"start\",\"max_size_bytes\":\"120000000\",\"uuid\":\"123456789\",\"duration\":\"1200000\"}}");
 //        }
-        if (isUserNewLayer) {
-            this.ktvChorusHelper = new AgoraKTVChorusHelper(rtcEngine);
-        }
     }
 
     @Override
@@ -811,9 +798,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
         int result = 0;
         if (chatType != null && chatType.equals(SoulRtcEngine.Type.TYPE_COMMUNICATION)) {
-            result = SAaoraInstance.getInstance().joinChannel(roomId, token, SoulRtcEngine.Type.TYPE_BROADCAST);
+            result = AgoraRtcBridge.getInstance().joinChannel(roomId, token, SoulRtcEngine.Type.TYPE_BROADCAST);
         } else {
-            result = SAaoraInstance.getInstance().joinRoomChannel(roomId, token, SoulRtcEngine.Type.TYPE_BROADCAST, isMultiRoom);
+            result = AgoraRtcBridge.getInstance().joinRoomChannel(roomId, token, SoulRtcEngine.Type.TYPE_BROADCAST, isMultiRoom);
         }
         if (result != 0) {
             cn.soulapp.android.lib.media.ResultCode code = new cn.soulapp.android.lib.media.ResultCode(result, "");
@@ -868,12 +855,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         }
         // TODO AgoraKTVChorusHelper 适配
         if (isUserNewLayer) {
-            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-            if (ktvChorusHelper != null) {
-                ktvChorusHelper.switchSingerRole(Const.KTV_ROLE_AUDIENCE);
-                ktvChorusHelper.release();
-                this.ktvChorusHelper = null;
-            }
+            AgoraRtcBridge.getInstance().switchSingerRole(Const.KTV_ROLE_AUDIENCE);
+            AgoraRtcBridge.getInstance().leaveKtvRoom();
         } else {
             IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
             if (syncProcessHelper != null) {
@@ -886,14 +869,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 this.ktvOldChorusHelper = null;
             }
         }
-//        IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
-//        if (syncProcessHelper != null) {
-//            syncProcessHelper.stop();
-//            this.syncProcessHelper = null;
-//        }
-        SAaoraInstance.getInstance().leaveChannel(null);
+        AgoraRtcBridge.getInstance().leaveChannel(null);
         SLogKt.SLogApi.e("RoomChatEngineAgora", "leaveRoom leaveChannel");
-        SAaoraInstance.getInstance().deInitWorkerThread();
+        AgoraRtcBridge.getInstance().deInitWorkerThread();
         SLogKt.SLogApi.e("RoomChatEngineAgora", "leaveRoom deInitWorkerThread");
         resetAudioState();
     }
@@ -925,7 +903,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         map.put("state", enable ? "1" : "0");
         track("RTC_Mute", map);
 
-        RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngineEx == null) return;
         SLogKt.SLogApi.d("sl_rtcEngine", "--enableMic--enable : " + enable);
         enableMic = enable;
@@ -935,20 +913,17 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         } else {
             rtcEngineEx.setAudioEffectPreset(AUDIO_EFFECT_OFF);
         }
-//        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+//        ChannelMediaOptions options = SAgoraInstance.getInstance().getOptions();
 //        if (options == null) return;
 //        options.publishMicrophoneTrack = enable;
 //        options.publishMediaPlayerAudioTrack = true;
-//        SAaoraInstance.getInstance().updateOption(options);
+//        SAgoraInstance.getInstance().updateOption(options);
 
         rtcEngineEx.muteRecordingSignal(!enable);
 
         // TODO AgoraKTVChorusHelper 适配
         if (isUserNewLayer) {
-            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-            if (ktvChorusHelper != null) {
-                ktvChorusHelper.enableMic(enable);
-            }
+            AgoraRtcBridge.getInstance().enableMic(enable);
         } else {
             AgoraOldKTVChorusHelper ktvChorusHelper = this.ktvOldChorusHelper;
             if (ktvChorusHelper != null) {
@@ -976,7 +951,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     private void speaker(boolean isMute){
         speakerMute = isMute;
-        if (SAaoraInstance.getInstance().rtcEngine() == null) return;
+        if (AgoraRtcBridge.getInstance().rtcEngine() == null) return;
 //        if (!isMute) {
 //            if (isWiredHeadsetOn()) {
 //                return;
@@ -993,20 +968,22 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void takeSeat(String token) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null){
             SLogKt.SLogApi.e(TAG, "takeSeat rtcEngine==null token="+token);
             return;
         }
         SLogKt.SLogApi.d("RoomChatEngineAgora", "--takeSeat--token : token = " + token);
         isPublishing = true;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER;
         options.publishCameraTrack = false;
         options.token = token;
-        SAaoraInstance.getInstance().updateOption(options);
-        rtcEngine.enableLocalAudio(true);
+        AgoraRtcBridge.getInstance().updateOption(options);
+        if (!AgoraRtcBridge.getInstance().isRecording) {
+            rtcEngine.enableLocalAudio(true);
+        }
         if (!isMute) {
             rtcEngine.muteRecordingSignal(false);
         }
@@ -1023,7 +1000,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void startPushVideoFrame() {
         isPublishing = true;
-        RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngineEx == null){
             SLogKt.SLogApi.e(TAG, "startPushVideoFrame rtcEngineEx==null");
             return;
@@ -1036,7 +1013,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void takeSeat() {
-        RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngineEx == null){
             SLogKt.SLogApi.e(TAG, "takeSeat rtcEngineEx==null");
             return;
@@ -1047,13 +1024,15 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         }
         SLogKt.SLogApi.d("RoomChatEngineAgora", "--takeSeatWithoutToken---");
         isPublishing = true;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER;
         options.publishCameraTrack = false;
         options.publishCustomVideoTrack = true;
-        SAaoraInstance.getInstance().updateOption(options);
-        rtcEngineEx.enableLocalAudio(true);
+        AgoraRtcBridge.getInstance().updateOption(options);
+        if (!AgoraRtcBridge.getInstance().isRecording) {
+            rtcEngineEx.enableLocalAudio(true);
+        }
         rtcEngineEx.muteRecordingSignal(false);
         if (isFollowSing) { //跟唱模式不能闭麦
             rtcEngineEx.muteLocalAudioStream(true);
@@ -1068,7 +1047,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void startAudioCapture() {
-//        RtcEngineEx engineEx = SAaoraInstance.getInstance().rtcEngine();
+//        RtcEngineEx engineEx = SAgoraInstance.getInstance().rtcEngine();
 //        if (null != engineEx) {
 ////            enableMic(true);
 //            if (!enableMic) {
@@ -1087,7 +1066,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             return;
         }
         this.isFollowSing = isOpen;
-        RtcEngineEx engineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx engineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (null == engineEx) {
             return;
         }
@@ -1124,15 +1103,15 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playMusic(IMusicPlayCallback callBack, String url) {
         this.iMusicPlayCallback = callBack;
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null){
             SLogKt.SLogApi.e(TAG, "playMusic rtcEngine==null, url="+url);
             return;
         }
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.publishMediaPlayerAudioTrack = true;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         rtcEngine.startAudioMixing(url, false, 1, 1);
 
         Map<String, Object> map = new HashMap<>();
@@ -1143,7 +1122,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playMusic(IMusicPlayCallback callBack, String url, int loopCount) {
         this.iMusicPlayCallback = callBack;
-        RtcEngineEx engineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx engineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (engineEx == null) {
             SLogKt.SLogApi.e(TAG, "playMusic rtcEngine==null url="+url +", loopCount="+loopCount);
             return;
@@ -1159,7 +1138,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playMusicForGame(IMusicPlayCallback callBack, String url, int loopCount) {
         this.iMusicPlayCallback = callBack;
-        RtcEngineEx engineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx engineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (engineEx == null) {
             SLogKt.SLogApi.e(TAG, "playMusic rtcEngine==null url=" + url + ", loopCount=" + loopCount);
             return;
@@ -1175,9 +1154,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playMusic(IMusicMediaPlayerCallBack iMusicMediaPlayerCallBack, String url, boolean publish) {
         this.iMusicMediaPlayerCallBack = iMusicMediaPlayerCallBack;
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
 
         Map<String, Object> map = new HashMap<>();
@@ -1186,13 +1165,13 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         track("RTC_Play_Music", map);
 
         options.publishMediaPlayerAudioTrack = publish;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         rtcEngine.startAudioMixing(url, !publish, 1, 1);
     }
 
     @Override
     public void pauseMusic() {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         rtcEngine.pauseAudioMixing();
 
@@ -1202,7 +1181,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void resumeMusic() {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         rtcEngine.resumeAudioMixing();
 
@@ -1212,26 +1191,27 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setVolume(int volume) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
-        if (rtcEngine == null) return;
-        rtcEngine.adjustAudioMixingVolume(volume);
+        AgoraRtcBridge.getInstance().adjustAudioMixingVolume(volume);
+//        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
+//        if (rtcEngine == null) return;
+//        rtcEngine.adjustAudioMixingVolume(volume);
     }
 
 
     @Override
     public void stopLive(String token) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         SLogKt.SLogApi.d("RoomChatEngineAgora", "--leaveSeat--token : ");
         setSource = false;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.clientRoleType = Constants.CLIENT_ROLE_AUDIENCE;
         options.publishCustomVideoTrack = false;
         options.token = token;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         rtcEngine.enableLocalAudio(false);
-//        SAaoraInstance.getInstance().rtcEngine().enableLocalVideo(false);
+//        SAgoraInstance.getInstance().rtcEngine().enableLocalVideo(false);
 
         Map<String, Object> map = new HashMap<>();
         map.put("role", "0");
@@ -1241,7 +1221,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void stopPushVideoFrame() {
         isPublishing = false;
-        RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngineEx == null){
             SLogKt.SLogApi.e(TAG, "startPushVideoFrame rtcEngineEx==null");
             return;
@@ -1254,7 +1234,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void stopLive() {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
 //        isPublishing = false;
         SLogKt.SLogApi.d("RoomChatEngineAgora", "--leaveSeatWithoutToken---");
@@ -1264,13 +1244,13 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             textureBufferHelper.dispose();
             textureBufferHelper = null;
         }
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.clientRoleType = Constants.CLIENT_ROLE_AUDIENCE;
         options.publishCustomVideoTrack = false;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         rtcEngine.enableLocalAudio(false);
-//        SAaoraInstance.getInstance().rtcEngine().enableLocalVideo(false);
+//        SAgoraInstance.getInstance().rtcEngine().enableLocalVideo(false);
 
         Map<String, Object> map = new HashMap<>();
         map.put("role", "1");
@@ -1279,7 +1259,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setVideoDimension(SVideoDimension videoDimension) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         VideoEncoderConfiguration.VideoDimensions videoDimensions = VD_640x480;
         switch (videoDimension) {
@@ -1299,7 +1279,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 videoDimensions = VD_320x180;
                 break;
         }
-        SAaoraInstance.getInstance().setVideoDimensions(videoDimensions);
+        AgoraRtcBridge.getInstance().setVideoDimensions(videoDimensions);
         rtcEngine.setVideoEncoderConfiguration(new VideoEncoderConfiguration(
                 videoDimensions,
                 FRAME_RATE_FPS_15,
@@ -1353,7 +1333,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             }
             ktvAudioPreset = audioPreset;
             if (enableMic) {
-                RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+                RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
                 if (rtcEngine == null){
                     return;
                 }
@@ -1377,8 +1357,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void addRoomCallBack(IRoomCallback iRoomCallback) {
         this.iRoomCallback = iRoomCallback;
-        if (isUserNewLayer && this.ktvChorusHelper != null) {
-            ktvChorusHelper.setRoomCallBack(iRoomCallback);
+        if (isUserNewLayer) {
+            AgoraRtcBridge.getInstance().setRoomCallBack(iRoomCallback);
         }
     }
 
@@ -1417,7 +1397,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void stopMusic() {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         rtcEngine.stopAudioMixing();
 
@@ -1427,14 +1407,14 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setVolumeForUser(String userId, String userName, int volume) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         rtcEngine.adjustUserPlaybackSignalVolume(Integer.parseInt(userId), volume);
     }
 
     @Override
     public void setVolumeForUser(String userId, String userName, int volume, IUserIdDES userIdDES) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         if(userIdDES != null){
             int len = userId.length();
@@ -1455,7 +1435,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setLocalVolume(int volume) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         haveAdjustVolum = true;
         recordingSignalVolume = volume * 2;
@@ -1465,7 +1445,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setLocalVolume(int volume, int earMonitoringVolume) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         haveAdjustVolum = true;
         recordingSignalVolume = volume * 2;
@@ -1476,10 +1456,10 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public synchronized void switchRoom(String t, final String roomID, String roomName, String uid, String userName, ZegoLoginRoomCallback loginRoomCallback) {
 //        this.zegoLoginRoomCallback = loginRoomCallback;
-//        SAaoraInstance.getInstance().leaveChannel(null);
+//        SAgoraInstance.getInstance().leaveChannel(null);
 //        initEngine(context,soPath,this.userId,"",appID,null,false);
 //        iRoomCallback.onRequestLoginToken();
-//        SAaoraInstance.getInstance().joinRoomChannel(roomName, token, SoulRtcEngine.Type.TYPE_BROADCAST);
+//        SAgoraInstance.getInstance().joinRoomChannel(roomName, token, SoulRtcEngine.Type.TYPE_BROADCAST);
         isLogin = false;
         haveAdjustVolum = false;
         stopMusic();
@@ -1550,7 +1530,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playEffect(String path, int soundID, int loopCount, boolean publish, IZegoAudioPlayerCallback callback) {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -1575,7 +1555,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void renewToken(String token) {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -1588,7 +1568,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playEffect(String path, int soundID, int loopCount, boolean publish, IEffectPlayCallBack callback) {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -1620,7 +1600,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void playEffect(String path, int soundID, int loopCount, boolean publish, boolean interrupt, final IZegoAudioPlayerCallback callback) {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -1647,7 +1627,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void stopEffect(int soundID) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null){
             return;
         }
@@ -1661,11 +1641,12 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setEffectVolume(int soundID, int volume) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
-        if (rtcEngine == null){
-            return;
-        }
-        rtcEngine.setVolumeOfEffect(soundID, volume);
+        AgoraRtcBridge.getInstance().setEffectVolume(soundID, volume);
+//        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
+//        if (rtcEngine == null){
+//            return;
+//        }
+//        rtcEngine.setVolumeOfEffect(soundID, volume);
     }
 
     @Override
@@ -1698,14 +1679,14 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         }
         audioUrl = url;
         // media player
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.publishMediaPlayerId = audioMediaPlayer.getMediaPlayerId();
         options.publishMediaPlayerAudioTrack = true;
         options.publishCustomVideoTrack = false;
         options.publishCameraTrack = false;
         options.publishMediaPlayerVideoTrack = false;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING || changeSource) {
             if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PAUSED) {
                 audioMediaPlayer.open(url, 0);
@@ -1737,14 +1718,14 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         customDataProvider.setUrl(url);
         customDataProvider.setMediaPlayerFileReader(fileReader);
         // media player
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.publishMediaPlayerId = audioMediaPlayer.getMediaPlayerId();
         options.publishMediaPlayerAudioTrack = true;
         options.publishCustomVideoTrack = false;
         options.publishCameraTrack = false;
         options.publishMediaPlayerVideoTrack = false;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         if (null != audioMediaPlayer && audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING || changeSource) {
             if (audioMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PAUSED) {
                 audioMediaPlayer.openWithCustomSource(0, customDataProvider);
@@ -1758,10 +1739,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         isKtvMode = true;
         if (isUserNewLayer) {
             isAccompanyDelayPositionChange = SConfiger.getBoolean("accompany_delay_position_change" ,false);
-            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-            if (ktvChorusHelper != null) {
-                ktvChorusHelper.playKTVEncryptAudio(params, isAccompanyDelayPositionChange);
-            }
+            AgoraRtcBridge.getInstance().playKTVEncryptAudio(params, isAccompanyDelayPositionChange);
         } else {
             String url = params.url;
             int role = params.role;
@@ -1794,12 +1772,12 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 customDataProvider.setMediaPlayerFileReader(params.fileReader);
             }
 
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 SLogKt.SLogApi.e(TAG, "playKTVEncryptAudio rtcEngine==null");
                 return;
             }
-            AgroaEngineConfig config = SAaoraInstance.getInstance().getConfig();
+            AgroaEngineConfig config = AgoraRtcBridge.getInstance().getConfig();
 
             AgoraKTVConfig ktvConfig = new AgoraKTVConfig();
             ktvConfig.role = role;
@@ -1848,17 +1826,18 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void setPlaybackSignalVolume(int playbackSignalVolume) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
-        if (rtcEngine == null) {
-            return;
-        }
-        if (playbackSignalVolume >= 100) {
-            rtcEngine.adjustPlaybackSignalVolume(100);
-            playbackVolume = 100;
-        } else {
-            rtcEngine.adjustPlaybackSignalVolume(playbackSignalVolume);
-            playbackVolume = playbackSignalVolume;
-        }
+        AgoraRtcBridge.getInstance().setPlaybackSignalVolume(playbackSignalVolume);
+//        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
+//        if (rtcEngine == null) {
+//            return;
+//        }
+//        if (playbackSignalVolume >= 100) {
+//            rtcEngine.adjustPlaybackSignalVolume(100);
+//            playbackVolume = 100;
+//        } else {
+//            rtcEngine.adjustPlaybackSignalVolume(playbackSignalVolume);
+//            playbackVolume = playbackSignalVolume;
+//        }
     }
 
     @Override
@@ -1873,7 +1852,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void playVideo(String url, TextureView textureView) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) {
             return;
         }
@@ -1888,15 +1867,15 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         cleanVideoView();
         videoUrl = url;
         // media player
-//        SAaoraInstance.getInstance().rtcEngine().enableVideo();
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+//        SAgoraInstance.getInstance().rtcEngine().enableVideo();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.publishMediaPlayerId = mediaPlayer.getMediaPlayerId();
         options.publishMediaPlayerAudioTrack = true;
         options.publishCustomVideoTrack = false;
         options.publishCameraTrack = false;
         options.publishMediaPlayerVideoTrack = true;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         rtcEngine.setVideoEncoderConfiguration(new VideoEncoderConfiguration(
                 VD_640x480,
                 FRAME_RATE_FPS_15,
@@ -1917,11 +1896,11 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (mediaPlayer != null) {
             mediaPlayer.stop();
             cleanVideoView();
-            ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+            ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
             if (options == null) return;
             options.publishMediaPlayerAudioTrack = false;
             options.publishMediaPlayerVideoTrack = false;
-            SAaoraInstance.getInstance().updateOption(options);
+            AgoraRtcBridge.getInstance().updateOption(options);
         }
     }
 
@@ -1930,32 +1909,28 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         // TODO AgoraKTVChorusHelper 适配, 另外可以清理下面的代码, 移除实时合唱的逻辑
         isKtvMode = false;
         if (isUserNewLayer) {
-            IAgoraKTVChorusHelper ktvChorusHelper = this.ktvChorusHelper;
-            if (ktvChorusHelper != null) {
-                ktvChorusHelper.stopAudio();
-            }
-
+            AgoraRtcBridge.getInstance().stopAudio();
             resetAudioState();
             if (audioMediaPlayer != null) {
                 audioMediaPlayer.stop();
                 audioDuration = 0;
-                ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+                ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
                 if (options == null) return;
                 options.publishMediaPlayerAudioTrack = false;
                 options.publishMediaPlayerVideoTrack = false;
-                SAaoraInstance.getInstance().updateOption(options);
+                AgoraRtcBridge.getInstance().updateOption(options);
             }
         } else {
             resetAudioState();
             if (audioMediaPlayer != null) {
                 audioMediaPlayer.stop();
                 audioDuration = 0;
-                ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+                ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
                 if (options == null) return;
                 options.publishMediaPlayerAudioTrack = false;
                 options.publishMediaPlayerVideoTrack = false;
 //            ktvAudioPreset = AUDIO_EFFECT_OFF;
-                SAaoraInstance.getInstance().updateOption(options);
+                AgoraRtcBridge.getInstance().updateOption(options);
             }
 
             if (syncProcessHelper != null) {
@@ -1976,7 +1951,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     private void cleanVideoView() {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null){
             return;
         }
@@ -1993,8 +1968,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (audioMediaPlayer != null) {
             audioMediaPlayer.pause();
         }
-        if (isUserNewLayer && null != ktvChorusHelper) {
-            ktvChorusHelper.pauseAudio();
+        if (isUserNewLayer && isKtvMode) {
+            AgoraRtcBridge.getInstance().pauseAudio();
         }
     }
 
@@ -2017,15 +1992,15 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (audioMediaPlayer != null) {
             audioMediaPlayer.resume();
         }
-        if (isUserNewLayer && null != ktvChorusHelper) {
-            ktvChorusHelper.resumeAudio();
+        if (isUserNewLayer && isKtvMode) {
+            AgoraRtcBridge.getInstance().resumeAudio();
         }
     }
 
     @Override
     public void setupRemoteVideoView(String uid, TextureView textureView, boolean withAlpha) {
         this.uid = uid;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
 
         Map<String, Object> map = new HashMap<>();
@@ -2034,9 +2009,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         track("RTC_Remote_Render", map);
 
         options.autoSubscribeVideo = true;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         if (!TextUtils.isEmpty(uid)) {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -2063,7 +2038,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void setupRemoteVideoView(String uid, SurfaceView textureView) {
         this.uid = uid;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
 
         Map<String, Object> map = new HashMap<>();
@@ -2072,9 +2047,9 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         track("RTC_Remote_Render", map);
 
         options.autoSubscribeVideo = true;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
         if (!TextUtils.isEmpty(uid)) {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -2087,12 +2062,10 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         return mediaPlayer != null && mediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING;
     }
 
-
-    //TODO ktv封装层有同样的方法，需要判断是ktv下面用里面的方法判断
     @Override
     public boolean isAudioPlaying() {
-        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
-            return ktvChorusHelper.isAudioPlaying();
+        if (isUserNewLayer && isKtvMode) {
+            return AgoraRtcBridge.getInstance().isAudioPlaying();
         }
         return audioMediaPlayer != null && audioMediaPlayer.getState() == io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING;
     }
@@ -2118,8 +2091,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
             audioMediaPlayer.adjustPlayoutVolume(volume);//本地播放的音量
             audioMediaPlayer.adjustPublishSignalVolume(volume / 2);//发到远端的音量
         }
-        if (isUserNewLayer && ktvChorusHelper != null) {
-            ktvChorusHelper.setVideoVolume(volume);
+        if (isUserNewLayer && isKtvMode) {
+            AgoraRtcBridge.getInstance().setVideoVolume(volume);
         }
     }
 
@@ -2139,8 +2112,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         this.playoutVolume = playoutVolume;
         this.publishSignalVolume = publishSignalVolume;
         haveAdjustVolum = true;
-        if (isUserNewLayer && ktvChorusHelper != null) {
-            ktvChorusHelper.setVideoVolume(playoutVolume, publishSignalVolume);
+        if (isUserNewLayer && isKtvMode) {
+            AgoraRtcBridge.getInstance().setVideoVolume(playoutVolume, publishSignalVolume);
         }
     }
 
@@ -2148,7 +2121,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     public void enableInEarMonitoring(boolean enable) {
         try {
             isEarEnable = enable;
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -2176,7 +2149,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public String getRoomId() {
-        AgroaEngineConfig config = SAaoraInstance.getInstance().getConfig();
+        AgroaEngineConfig config = AgoraRtcBridge.getInstance().getConfig();
         if (config == null) {
             return null;
         }
@@ -2262,7 +2235,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 }
             }
 
-            RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngineEx = AgoraRtcBridge.getInstance().rtcEngine();
 
             //多线程NPE避免
             IAgoraKTVSyncProcess syncProcessHelper = this.syncProcessHelper;
@@ -2313,7 +2286,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
                 if (null != audioPlayerCallBack) {
                     audioPlayerCallBack.onAudioPositionChanged(uid, currentAudioPosition, audioUniId, false);
                 }
-                RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+                RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
                 if (rtcEngine!=null && playerRole == Const.KTV_ROLE_LEADER_SINGER) {
                     StreamMessage streamMessage = new StreamMessage();
                     streamMessage.type = StreamMessage.TYPE_PLAY_STATUS;
@@ -2409,11 +2382,11 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void pushExternalVideoFrame(VideoFrame videoFrame) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null){
             return;
         }
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         if (!setSource) {
             setSource = true;
@@ -2422,10 +2395,10 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         options.autoSubscribeVideo = true;
         options.publishCustomVideoTrack = true;
         options.publishEncodedVideoTrack = true;
-        SAaoraInstance.getInstance().updateOption(options);
-//        SAaoraInstance.getInstance().rtcEngine().setExternalVideoSource(true, true, true);
-//        SAaoraInstance.getInstance().rtcEngine().enableVideo();
-//        SAaoraInstance.getInstance().rtcEngine().setVideoEncoderConfiguration(new VideoEncoderConfiguration(
+        AgoraRtcBridge.getInstance().updateOption(options);
+//        SAgoraInstance.getInstance().rtcEngine().setExternalVideoSource(true, true, true);
+//        SAgoraInstance.getInstance().rtcEngine().enableVideo();
+//        SAgoraInstance.getInstance().rtcEngine().setVideoEncoderConfiguration(new VideoEncoderConfiguration(
 //                VD_640x480,
 //                FRAME_RATE_FPS_15,
 //                STANDARD_BITRATE,
@@ -2435,18 +2408,18 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void pushExternalVideoFrameV2(EGLContext eglContext, final int cameraTextureId, final int cameraWidth, final int cameraHeight, final boolean withAlpha) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null) return;
         SLogKt.SLogApi.d("RoomChatEngineAgora", "pushExternalVideoFrameV2 first");
         if (!isLogin()) return;
         SLogKt.SLogApi.d("RoomChatEngineAgora", "pushExternalVideoFrameV2 setSource = " + setSource);
         if (!setSource) {
             setSource = true;
-            ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+            ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
             if (options == null) return;
             SLogKt.SLogApi.d("RoomChatEngineAgora", "pushExternalVideoFrameV2 options ok");
             options.publishCustomVideoTrack = true;
-            SAaoraInstance.getInstance().updateOption(options);
+            AgoraRtcBridge.getInstance().updateOption(options);
             rtcEngine.setExternalVideoSource(true, true, Constants.ExternalVideoSourceType.VIDEO_FRAME);
 //            VideoEncoderConfiguration.VideoDimensions vd  =  new VideoEncoderConfiguration.VideoDimensions();
             SimulcastStreamConfig ssc = new SimulcastStreamConfig();
@@ -2499,7 +2472,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public boolean isLogin() {
-        if (SAaoraInstance.getInstance().rtcEngine() == null) {
+        if (AgoraRtcBridge.getInstance().rtcEngine() == null) {
             return false;
         }
         SLogKt.SLogApi.d("RoomChatEngineAgora", "isLogin isLogin =" + isLogin);
@@ -2507,7 +2480,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     private void initMediaPlayer() {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine == null){
             return;
         }
@@ -2525,12 +2498,12 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     private void initAudioMediaPlayer() {
-        RtcEngine rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngine rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (audioMediaPlayer == null && rtcEngine != null) {
             DataStreamConfig config = new DataStreamConfig();
             config.syncWithAudio = true;
             steamId = rtcEngine.createDataStream(config);
-            syncSteamId = SAaoraInstance.getInstance().rtcEngine().createDataStream(config);
+            syncSteamId = AgoraRtcBridge.getInstance().rtcEngine().createDataStream(config);
             audioMediaPlayer = rtcEngine.createMediaPlayer();
             audioMediaPlayer.registerPlayerObserver(this);
             audioMediaPlayer.setPlayerOption("play_pos_change_callback", 100);
@@ -2547,7 +2520,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void sendMessage(byte[] msg) {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -2564,7 +2537,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void enableAudioVolumeIndication(int interval, int smooth) {
-        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngine != null) {
             rtcEngine.enableAudioVolumeIndication(interval, smooth, false);
         }
@@ -2591,7 +2564,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void setRemoteVideoStreamType(int uid, int streamType) {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -2604,7 +2577,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void setExternalVideoSource() {
         try {
-            RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+            RtcEngineEx rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
             if (rtcEngine == null){
                 return;
             }
@@ -2621,16 +2594,16 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
         if (audioMediaPlayer != null) {
             audioMediaPlayer.selectAudioTrack(audioTrack);
         }
-        if (isUserNewLayer && null != ktvChorusHelper) {
-            ktvChorusHelper.selectAudioTrack(audioTrack);
+        if (isUserNewLayer && isKtvMode) {
+            AgoraRtcBridge.getInstance().selectAudioTrack(audioTrack);
         }
         this.audioTrack = audioTrack;
     }
 
     @Override
     public long getAudioDuration() {
-        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
-            return ktvChorusHelper.getAudioDuration();
+        if (isUserNewLayer && isKtvMode) {
+            return AgoraRtcBridge.getInstance().getAudioDuration();
         }
         if (audioMediaPlayer != null) {
             audioMediaPlayer.getDuration();
@@ -2647,8 +2620,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     public void audioSeekTo(long l) {
-        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
-            ktvChorusHelper.audioSeekTo(l);
+        if (isUserNewLayer && isKtvMode) {
+            AgoraRtcBridge.getInstance().audioSeekTo(l);
             return;
         }
         if (audioMediaPlayer != null) {
@@ -2657,8 +2630,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     public SLMediaPlayerState getAudioPlayerState() {
-        if (isUserNewLayer && isKtvMode && null != ktvChorusHelper) {
-            return ktvChorusHelper.getAudioPlayerState();
+        if (isUserNewLayer && isKtvMode) {
+            return AgoraRtcBridge.getInstance().getAudioPlayerState();
         }
         io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState;
         if (audioMediaPlayer != null) {
@@ -2690,19 +2663,19 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void stopPushExternalVideoFrame() {
         setSource = false;
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.publishCustomVideoTrack = false;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
     }
 
     @Override
     public void subscribeRemoteStream(boolean isSubscribe) {
-        ChannelMediaOptions options = SAaoraInstance.getInstance().getOptions();
+        ChannelMediaOptions options = AgoraRtcBridge.getInstance().getOptions();
         if (options == null) return;
         options.autoSubscribeAudio = isSubscribe;
         options.autoSubscribeVideo = isSubscribe;
-        SAaoraInstance.getInstance().updateOption(options);
+        AgoraRtcBridge.getInstance().updateOption(options);
 
         Map<String, Object> map = new HashMap<>();
         map.put("state", isSubscribe ? "1" : "0");
@@ -2712,8 +2685,8 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     @Override
     public void setAudioPlayerCallBack(IAudioPlayerCallBack callBack) {
         this.audioPlayerCallBack = callBack;
-        if (isUserNewLayer && this.ktvChorusHelper != null) {
-            ktvChorusHelper.setAudioPlayerCallBack(callBack);
+        if (isUserNewLayer) {
+            AgoraRtcBridge.getInstance().setAudioPlayerCallBack(callBack);
         }
     }
 
@@ -2724,7 +2697,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public void enableKtv(boolean enable) {
-//        RtcEngineEx rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+//        RtcEngineEx rtcEngine = SAgoraInstance.getInstance().rtcEngine();
 //        if (rtcEngine == null) {
 //            return;
 //        }
@@ -2736,7 +2709,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     private void setDefaultAudioRoutetoSpeakerphoneWapper(boolean isEnable){
-        RtcEngineEx rtcEngineEx = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngineEx rtcEngineEx = AgoraRtcBridge.getInstance().rtcEngine();
         if (rtcEngineEx == null){
             SLogKt.SLogApi.e(TAG, "setDefaultAudioRoutetoSpeakerphoneWapper rtcEngineEx==null, isEnable="+isEnable);
             return;
@@ -2806,7 +2779,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
     }
 
     private void initAgoraMediaRecorder(){
-        RtcEngine rtcEngine = SAaoraInstance.getInstance().rtcEngine();
+        RtcEngine rtcEngine = AgoraRtcBridge.getInstance().rtcEngine();
         if (null == rtcEngine) {
             return;
         }
@@ -2898,7 +2871,7 @@ public class AgoraChatRoomEngine implements IChatRoomEngine, IMediaPlayerObserve
 
     @Override
     public int getPlaybackVolume() {
-        return playbackVolume;
+        return AgoraRtcBridge.getInstance().getPlaybackVolume();
     }
 
     @Override

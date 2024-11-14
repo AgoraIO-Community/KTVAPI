@@ -1,6 +1,5 @@
-package io.agora.ktvapi.soul;
+package cn.soulapp.android.lib.media.agroa;
 
-import cn.soulapp.android.lib.media.agroa.AgroaEngineConfig;
 import io.agora.mediaplayer.IMediaPlayer;
 import io.agora.rtc2.RtcEngineEx;
 
@@ -12,7 +11,6 @@ class AgoraKTVConfig {
     public int role;
     public RtcEngineEx rtcEngine;
     public IMediaPlayer mediaPlayer;
-    public AgroaEngineConfig agroaEngineConfig;
     public String chorusToken; //主唱人声流token
     public String chorusChannelId;//主唱人声流channelId
     public int leaderUid;//主唱uid
