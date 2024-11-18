@@ -61,6 +61,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
     private boolean mEnableMic = true;
     private volatile boolean mHasPlay;
     private int syncSteamId;
+    private int steamId;
     private IAgoraKTVSyncProcess syncProcessHelper;//KTV合唱同步
     private boolean isAccompanyDelayPositionChange = false;
     private String audioUniId;
@@ -82,7 +83,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
     private boolean isOldLeadSinger = false;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
-    private AgoraRtcBridge(RtcEngineEx rtcEngine, int uid) {
+    public AgoraRtcBridge(RtcEngineEx rtcEngine, int uid) {
         this.mRtcEngine = rtcEngine;
         this.localUid = uid;
     }
@@ -97,7 +98,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
         if (mMediaPlayer == null && mRtcEngine != null) {
             DataStreamConfig config = new DataStreamConfig();
             config.syncWithAudio = true;
-            //steamId = mRtcEngine.createDataStream(config);
+            steamId = mRtcEngine.createDataStream(config);
             syncSteamId = mRtcEngine.createDataStream(config);
             mMediaPlayer = mRtcEngine.createMediaPlayer();
             mMediaPlayer.registerPlayerObserver(this);
@@ -703,6 +704,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
 
         if (mRtcEngine != null && mRole == KTV_ROLE_LEADER_SINGER && mMediaPlayer != null) {
             AgoraKTVStreamMessage streamMessage = new AgoraKTVStreamMessage();
+            streamMessage.type = AgoraKTVStreamMessage.TYPE_PLAY_STATUS;
             if (syncProcessHelper != null) {
                 streamMessage.currentTimeStamp = String.valueOf(syncProcessHelper.getNtpTime());
             }
@@ -710,12 +712,14 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
             if (audioDuration <= 0) {
                 audioDuration = mMediaPlayer.getDuration();
             }
+            streamMessage.audioDelay = String.valueOf(audioDelay);
             streamMessage.audioUniId = audioUniId;
+            streamMessage.duration = String.valueOf(audioDuration);
             streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
             // TODO 把streamMessage 转成jsonString
             String data = GsonUtils.entityToJson(streamMessage);
             if (data != null) {
-                mRtcEngine.sendStreamMessage(syncSteamId, data.getBytes(StandardCharsets.UTF_8));
+                mRtcEngine.sendStreamMessage(steamId, data.getBytes(StandardCharsets.UTF_8));
             }
         }
 
@@ -746,15 +750,18 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
             }
             if (mRtcEngine != null && mRole == KTV_ROLE_LEADER_SINGER) {
                 AgoraKTVStreamMessage streamMessage = new AgoraKTVStreamMessage();
+                streamMessage.type = AgoraKTVStreamMessage.TYPE_PLAY_STATUS;
                 if (syncProcessHelper != null) {
                     streamMessage.currentTimeStamp = String.valueOf(syncProcessHelper.getNtpTime());
                 }
                 streamMessage.currentDuration = String.valueOf(l - audioDelay);
-                streamMessage.audioUniId = audioUniId;
+                streamMessage.audioDelay = String.valueOf(audioDelay);
                 if (audioDuration <= 0) {
                     audioDuration = mMediaPlayer.getDuration();
                     Log.e(TAG, "onPositionChanged getDuration:"+audioDuration);
                 }
+                streamMessage.audioUniId = audioUniId;
+                streamMessage.duration = String.valueOf(audioDuration);
                 io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState = null;
                 if (syncProcessHelper != null){
                     mediaPlayerState = syncProcessHelper.getMediaPlayerState();
@@ -763,7 +770,6 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
                     mediaPlayerState = mMediaPlayer.getState();
                 }
                 streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
-                // TODO 把streamMessage 转成jsonString
                 String data = GsonUtils.entityToJson(streamMessage);
                 if (data != null)
                     mRtcEngine.sendStreamMessage(syncSteamId, data.getBytes(StandardCharsets.UTF_8));
