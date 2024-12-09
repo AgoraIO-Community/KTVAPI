@@ -509,8 +509,8 @@ class KTVApiImpl(
             mRtcEngine.muteRemoteAudioStream(mainSingerUid, false)
             mainSingerUid = ktvApiConfig.localUid
 
-            mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
-            mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+//            mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+//            mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
             mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 80000}")
 
             val channelMediaOption = ChannelMediaOptions()
@@ -834,8 +834,8 @@ class KTVApiImpl(
         ktvApiLog("becomeSoloSinger called")
         // 主唱进入合唱模式
         mRtcEngine.setAudioScenario(AUDIO_SCENARIO_CHORUS)
-        mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
-        mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+//        mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+//        mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
         mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 80000}")
 
         val channelMediaOption = ChannelMediaOptions()
@@ -910,8 +910,8 @@ class KTVApiImpl(
                 leaveChorus2ndChannel(role)
 
                 mRtcEngine.setAudioScenario(AUDIO_SCENARIO_GAME_STREAMING)
-                mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
-                mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
+//                mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
+//                mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
                 mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 48000}")
             }
             else -> {
@@ -930,8 +930,8 @@ class KTVApiImpl(
         mPlayer.stop()
 
         mRtcEngine.setAudioScenario(AUDIO_SCENARIO_GAME_STREAMING)
-        mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
-        mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
+//        mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
+//        mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
         mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 48000}")
     }
 
@@ -989,8 +989,8 @@ class KTVApiImpl(
 
         if (newRole == KTVSingRole.CoSinger) {
             mRtcEngine.setAudioScenario(AUDIO_SCENARIO_CHORUS)
-            mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
-            mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+//            mRtcEngine.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+//            mRtcEngine.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
             mRtcEngine.setParameters("{\"che.audio.custom_bitrate\": 48000}")
         }
 

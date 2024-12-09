@@ -622,8 +622,8 @@ extension KTVApiImpl {
             apiConfig?.engine?.muteRemoteAudioStream(UInt(songConfig?.mainSingerUid ?? 0), mute: false)
             songConfig?.mainSingerUid = apiConfig?.localUid ?? 0
             
-            apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
-            apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+//            apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+//            apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
             apiConfig?.engine?.setParameters("{\"che.audio.custom_bitrate\": 80000}")
             
             let mediaOption = AgoraRtcChannelMediaOptions()
@@ -652,8 +652,8 @@ extension KTVApiImpl {
 
     private func becomeSoloSinger() {
         apiConfig?.engine?.setAudioScenario(.chorus)
-        apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
-        apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+//        apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+//        apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
         apiConfig?.engine?.setParameters("{\"che.audio.custom_bitrate\": 80000}")
         agoraPrint("becomeSoloSinger")
         let mediaOption = AgoraRtcChannelMediaOptions()
@@ -706,8 +706,8 @@ extension KTVApiImpl {
         agoraPrint("joinChorus2ndChannel role: \(role.rawValue)")
         if newRole == .coSinger {
             apiConfig?.engine?.setAudioScenario(.chorus)
-            apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
-            apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
+//            apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":false}")
+//            apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":false}")
             apiConfig?.engine?.setParameters("{\"che.audio.custom_bitrate\": 48000}")
         }
 
@@ -767,8 +767,8 @@ extension KTVApiImpl {
             apiConfig?.engine?.updateChannel(with: mediaOption)
             leaveChorus2ndChannel(role)
             apiConfig?.engine?.setAudioScenario(.gameStreaming)
-            apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
-            apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
+//            apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
+//            apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
             apiConfig?.engine?.setParameters("{\"che.audio.custom_bitrate\": 48000}")
         } else if role == .audience {
             agoraPrint("joinChorus: KTVSingRoleAudience does not need to leaveChorus!")
@@ -966,8 +966,8 @@ extension KTVApiImpl {
             mediaPlayer?.stop()
         }
         apiConfig?.engine?.setAudioScenario(.gameStreaming)
-        apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
-        apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
+//        apiConfig?.engine?.setParameters("{\"rtc.video.enable_sync_render_ntp_broadcast\":true}")
+//        apiConfig?.engine?.setParameters("{\"che.audio.neteq.enable_stable_playout\":true}")
         apiConfig?.engine?.setParameters("{\"che.audio.custom_bitrate\": 48000}")
     }
     
