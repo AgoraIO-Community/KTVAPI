@@ -15,9 +15,14 @@ import android.util.Log;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-import cn.soulapp.android.lib.media.agroa.interfaces.IAgoraKTVSyncProcess;
-import cn.soulapp.android.lib.media.agroa.interfaces.IAgoraRtcBridge;
-import cn.soulapp.android.lib.media.agroa.interfaces.IAgoraRtcBridgeEventHandler;
+import cn.soulapp.android.lib.media.Const;
+import cn.soulapp.android.lib.media.agoraup.interfaces.IAgoraKTVSyncProcess;
+import cn.soulapp.android.lib.media.agoraup.interfaces.IAgoraRtcBridge;
+import cn.soulapp.android.lib.media.agoraup.interfaces.IAgoraRtcBridgeEventHandler;
+import cn.soulapp.android.lib.media.agroa.AgoraKTVConfig;
+import cn.soulapp.android.lib.media.agroa.AgoraKTVStreamMessage;
+import cn.soulapp.android.lib.media.agroa.AgoraKTVSyncProcessNTPHelper;
+import cn.soulapp.android.lib.media.zego.utils.GsonUtils;
 import io.agora.mediaplayer.IMediaPlayer;
 import io.agora.mediaplayer.IMediaPlayerCustomDataProvider;
 import io.agora.mediaplayer.IMediaPlayerObserver;
@@ -67,6 +72,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
     private String audioUniId;
     private boolean isDelayLocalSendPosition = true;
     private long audioDuration = 0;//
+    private io.agora.mediaplayer.Constants.MediaPlayerState mMediaPlayerState;
 
     // TODO Add variables
     private int audioDelay;
@@ -138,7 +144,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
         haveAdjustVolum = false;
     }
 
-    private void switchSingerRole(int role) {
+    public void switchSingerRole(int role) {
         if (mRtcEngine == null) return;
         if (mRole == KTV_ROLE_AUDIENCE && role == KTV_ROLE_LEADER_SINGER) {
             startPlay();
@@ -179,6 +185,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
     public void playKTVEncryptAudio(
             String url, // TODO Change from PlayKTVParams
             int role,   // TODO Change from PlayKTVParams
+            long startPos,
             String chorusToken, // TODO Change from PlayKTVParams
             String chorusChannelId, // TODO Change from PlayKTVParams
             String curSingerUid,    // TODO Change from PlayKTVParams
@@ -209,13 +216,6 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
             mMediaPlayer.stop();
         }
         audioUrl = url;
-
-        // TODO 改为了外部传入 customDataProvider
-//        if (params.playType == KtvAudioPlayType.playTypeEncryption) {
-//            customDataProvider = new MediaPlayerCustomDataProvider();
-//            customDataProvider.setUrl(url);
-//            customDataProvider.setMediaPlayerFileReader(params.fileReader);
-//        }
 
         if (mRtcEngine == null) {
             Log.e(TAG, "playKTVEncryptAudio rtcEngine==null");
@@ -253,10 +253,18 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
 
         if (mMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PLAYING || changeSource) {
             if (mMediaPlayer.getState() != io.agora.mediaplayer.Constants.MediaPlayerState.PLAYER_STATE_PAUSED) {
-                if (customDataProvider != null) {
-                    mMediaPlayer.openWithCustomSource(0, customDataProvider);
+                if (null != customDataProvider) {
+                    if (startPos > 0) {
+                        mMediaPlayer.openWithCustomSource(startPos, customDataProvider);
+                    } else {
+                        mMediaPlayer.openWithCustomSource(0, customDataProvider);
+                    }
                 } else {
-                    mMediaPlayer.open(url, 0);
+                    if (startPos > 0) {
+                        mMediaPlayer.open(url, startPos);
+                    } else {
+                        mMediaPlayer.open(url, 0);
+                    }
                 }
             }
         }
@@ -264,7 +272,6 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
 
     @Override
     public void stopAudio() {
-        mRole = 0;
         audioUniId = "";
         if (mMediaPlayer != null) {
             mMediaPlayer.stop();
@@ -280,6 +287,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
             syncProcessHelper = null;
         }
         stopPlay();
+        mRole = KTV_ROLE_AUDIENCE;
     }
 
     /**
@@ -290,6 +298,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
     public void setNewLeadSinger(
             int uid,
             String url, // TODO Change from PlayKTVParams
+            long startPos,
             String chorusToken, // TODO Change from PlayKTVParams
             String chorusChannelId, // TODO Change from PlayKTVParams
             String curSingerUid,    // TODO Change from PlayKTVParams
@@ -303,7 +312,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
         } else if (mRole == KTV_ROLE_AUDIENCE && localUid == uid) {
             isNewLeadSinger = true;
             switchSingerRole(KTV_ROLE_ACCOMPANY_SINGER);
-            playKTVEncryptAudio(url, KTV_ROLE_ACCOMPANY_SINGER, chorusToken, chorusChannelId, curSingerUid, playbackSignalVolume, audioUniId, isAccompanyDelayPositionChange, customDataProvider);
+            playKTVEncryptAudio(url, KTV_ROLE_ACCOMPANY_SINGER, startPos, chorusToken, chorusChannelId, curSingerUid, playbackSignalVolume, audioUniId, isAccompanyDelayPositionChange, customDataProvider);
         }
     }
 
@@ -723,7 +732,7 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
             }
         }
 
-
+        this.mMediaPlayerState = mediaPlayerState;
         if (syncProcessHelper != null){
             syncProcessHelper.onPlayerStateChanged(mediaPlayerState, mediaPlayerError);
         }
@@ -756,20 +765,9 @@ public class AgoraRtcBridge implements IAgoraRtcBridge, IMediaPlayerObserver {
                 }
                 streamMessage.currentDuration = String.valueOf(l - audioDelay);
                 streamMessage.audioDelay = String.valueOf(audioDelay);
-                if (audioDuration <= 0) {
-                    audioDuration = mMediaPlayer.getDuration();
-                    Log.e(TAG, "onPositionChanged getDuration:"+audioDuration);
-                }
                 streamMessage.audioUniId = audioUniId;
                 streamMessage.duration = String.valueOf(audioDuration);
-                io.agora.mediaplayer.Constants.MediaPlayerState mediaPlayerState = null;
-                if (syncProcessHelper != null){
-                    mediaPlayerState = syncProcessHelper.getMediaPlayerState();
-                }
-                if (mediaPlayerState == null){
-                    mediaPlayerState = mMediaPlayer.getState();
-                }
-                streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mediaPlayerState));
+                streamMessage.playerState = String.valueOf(io.agora.mediaplayer.Constants.MediaPlayerState.getValue(mMediaPlayerState));
                 String data = GsonUtils.entityToJson(streamMessage);
                 if (data != null)
                     mRtcEngine.sendStreamMessage(syncSteamId, data.getBytes(StandardCharsets.UTF_8));
